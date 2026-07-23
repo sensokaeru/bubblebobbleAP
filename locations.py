@@ -1,0 +1,268 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from BaseClasses import ItemClassification, Location
+
+from . import items
+
+if TYPE_CHECKING:
+    from .world import BubbleBobbleWorld
+
+levels = {
+    "Level 01": 1001
+    "Level 02": 1002
+    "Level 03": 1003
+    "Level 04": 1004
+    "Level 05": 1005
+    "Level 06": 1006
+    "Level 07": 1007
+    "Level 08": 1008
+    "Level 09": 1009
+    "Level 10": 1010
+    "Level 11": 1011
+    "Level 12": 1012
+    "Level 13": 1013
+    "Level 14": 1014
+    "Level 15": 1015
+    "Level 16": 1016
+    "Level 17": 1017
+    "Level 18": 1018
+    "Level 19": 1019
+    "Level 20": 1020
+    "Level 21": 1021
+    "Level 22": 1022
+    "Level 23": 1023
+    "Level 24": 1024
+    "Level 25": 1025
+    "Level 26": 1026
+    "Level 27": 1027
+    "Level 28": 1028
+    "Level 29": 1029
+    "Level 30": 1030
+    "Level 31": 1031
+    "Level 32": 1032
+    "Level 33": 1033
+    "Level 34": 1034
+    "Level 35": 1035
+    "Level 36": 1036
+    "Level 37": 1037
+    "Level 38": 1038
+    "Level 39": 1039
+    "Level 40": 1040
+    "Level 41": 1041
+    "Level 42": 1042
+    "Level 43": 1043
+    "Level 44": 1044
+    "Level 45": 1045
+    "Level 46": 1046
+    "Level 47": 1047
+    "Level 48": 1048
+    "Level 49": 1049
+    "Level 50": 1050
+    "Level 51": 1051
+    "Level 52": 1052
+    "Level 53": 1053
+    "Level 54": 1054
+    "Level 55": 1055
+    "Level 56": 1056
+    "Level 57": 1057
+    "Level 58": 1058
+    "Level 59": 1059
+    "Level 60": 1060
+    "Level 61": 1061
+    "Level 62": 1062
+    "Level 63": 1063
+    "Level 64": 1064
+    "Level 65": 1065
+    "Level 66": 1066
+    "Level 67": 1067
+    "Level 68": 1068
+    "Level 69": 1069
+    "Level 70": 1070
+    "Level 71": 1071
+    "Level 72": 1072
+    "Level 73": 1073
+    "Level 74": 1074
+    "Level 75": 1075
+    "Level 76": 1076
+    "Level 77": 1077
+    "Level 78": 1078
+    "Level 79": 1079
+    "Level 80": 1080
+    "Level 81": 1081
+    "Level 82": 1082
+    "Level 83": 1083
+    "Level 84": 1084
+    "Level 85": 1085
+    "Level 86": 1086
+    "Level 87": 1087
+    "Level 88": 1088
+    "Level 89": 1089
+    "Level 90": 1090
+    "Level 91": 1091
+    "Level 92": 1092
+    "Level 93": 1093
+    "Level 94": 1094
+    "Level 95": 1095
+    "Level 96": 1096
+    "Level 97": 1097
+    "Level 98": 1098
+    "Level 99": 1099
+    "Level A0": 1100
+    "Level A1": 1101
+    "Level A2": 1102
+    "Level A3": 1103
+    "Level A4": 1104
+    "Level A5": 1105
+    "Level A6": 1106
+    "Level A7": 1107
+    "Level A8": 1108
+    "Level A9": 1109
+    "Level B0": 1110
+    "Level B1": 1111
+    "Level B2": 1112
+    "Level B3": 1113
+}
+
+supers = {
+    "Super 01": 2001
+    "Super 02": 2002
+    "Super 03": 2003
+    "Super 04": 2004
+    "Super 05": 2005
+    "Super 06": 2006
+    "Super 07": 2007
+    "Super 08": 2008
+    "Super 09": 2009
+    "Super 10": 2010
+    "Super 11": 2011
+    "Super 12": 2012
+    "Super 13": 2013
+    "Super 14": 2014
+    "Super 15": 2015
+    "Super 16": 2016
+    "Super 17": 2017
+    "Super 18": 2018
+    "Super 19": 2019
+    "Super 20": 2020
+    "Super 21": 2021
+    "Super 22": 2022
+    "Super 23": 2023
+    "Super 24": 2024
+    "Super 25": 2025
+    "Super 26": 2026
+    "Super 27": 2027
+    "Super 28": 2028
+    "Super 29": 2029
+    "Super 30": 2030
+    "Super 31": 2031
+    "Super 32": 2032
+    "Super 33": 2033
+    "Super 34": 2034
+    "Super 35": 2035
+    "Super 36": 2036
+    "Super 37": 2037
+    "Super 38": 2038
+    "Super 39": 2039
+    "Super 40": 2040
+    "Super 41": 2041
+    "Super 42": 2042
+    "Super 43": 2043
+    "Super 44": 2044
+    "Super 45": 2045
+    "Super 46": 2046
+    "Super 47": 2047
+    "Super 48": 2048
+    "Super 49": 2049
+    "Super 50": 2050
+    "Super 51": 2051
+    "Super 52": 2052
+    "Super 53": 2053
+    "Super 54": 2054
+    "Super 55": 2055
+    "Super 56": 2056
+    "Super 57": 2057
+    "Super 58": 2058
+    "Super 59": 2059
+    "Super 60": 2060
+    "Super 61": 2061
+    "Super 62": 2062
+    "Super 63": 2063
+    "Super 64": 2064
+    "Super 65": 2065
+    "Super 66": 2066
+    "Super 67": 2067
+    "Super 68": 2068
+    "Super 69": 2069
+    "Super 70": 2070
+    "Super 71": 2071
+    "Super 72": 2072
+    "Super 73": 2073
+    "Super 74": 2074
+    "Super 75": 2075
+    "Super 76": 2076
+    "Super 77": 2077
+    "Super 78": 2078
+    "Super 79": 2079
+    "Super 80": 2080
+    "Super 81": 2081
+    "Super 82": 2082
+    "Super 83": 2083
+    "Super 84": 2084
+    "Super 85": 2085
+    "Super 86": 2086
+    "Super 87": 2087
+    "Super 88": 2088
+    "Super 89": 2089
+    "Super 90": 2090
+    "Super 91": 2091
+    "Super 92": 2092
+    "Super 93": 2093
+    "Super 94": 2094
+    "Super 95": 2095
+    "Super 96": 2096
+    "Super 97": 2097
+    "Super 98": 2098
+    "Super 99": 2099
+    "Super A0": 2100
+    "Super A1": 2101
+    "Super A2": 2102
+    "Super A3": 2103
+    "Super A4": 2104
+    "Super A5": 2105
+    "Super A6": 2106
+    "Super A7": 2107
+    "Super A8": 2108
+    "Super A9": 2109
+    "Super B0": 2110
+    "Super B1": 2111
+    "Super B2": 2112
+    "Super B3": 2113
+}
+
+LOCATION_NAME_TO_ID = {}
+
+LOCATION_NAME_TO_ID.update(levels)
+LOCATION_NAME_TO_ID.update(supers)
+
+class BubbleBobbleLocation(Location):
+    game = "Bubble Bobble"
+
+def create_all_locations(world: BubbleBobbleWorld) -> None:
+    create_regular_locations(world)
+    create_events(world)
+
+def create_regular_locations(world: BubbleBobbleWorld) -> None:
+    bubblebobble = world.get_region("Bubble Bobble")
+    bubblebobble.add_locations(levels, BubbleBobbleLocation)
+    
+    if world.options.separate_super_bubble_bobble_levels and world.options.lock_super_bubble_bobble_levels:
+        superbubblebobble = world.get_region("Super Bubble Bobble")
+        superbubblebobble.add_locations(supers, BubbleBobbleLocation)
+    elif world.options.separate_super_bubble_bobble_levels:
+        bubblebobble.add_locations(supers, BubbleBobbleLocation)
+
+def create_events(world: BubbleBobbleWorld) -> None:
+    bubblebobble.add_event("Boss Defeated", "Victory", location_type=BubbleBobbleLocation, item_type=items.BubbleBobbleItem)
+    ###figure out if I need to do additional events for different logic for different settings for end boss
