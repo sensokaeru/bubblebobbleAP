@@ -3,10 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rule_builder.options import OptionFilter
-from rule_builder.rules import Has, HasAll, Rule
+from rule_builder.rules import Has, HasAll, Rule, HasAny
 
 from BaseClasses import CollectionState
-from worlds.generic.Rules import add_rule, set_rule
 
 from . import levels
 #call levels data as levels.database
@@ -21,20 +20,74 @@ def set_all_rules(world: BubbleBobbleWorld) -> None:
 
 def set_all_entrance_rules(world: BubbleBobbleWorld) -> None:
     if world.options.separate_super_bubble_bobble_levels and world.options.lock_super_bubble_bobble_levels:
-        unlock_super_bubble_bobble = world.get_entrance("Unlock Super Bubble Bobble")
-        world.set_rule(unlock_super_bubble_bobble, lambda state: state.has("Super Bubble Bobble", world.player))
+        world.set_rule(world.get_entrance("Unlock Super Bubble Bobble"), Has("Super Bubble Bobble"))
 
 def set_all_location_rules(world: BubbleBobbleWorld) -> None:
-    from .locations import levels
-    for x in list(levels.keys()):
-        
-    #########
-    #start with if not using separate super levels, then do all the logic under that
-    #then else (therefore yes using super levels as separate checks) and do all the logic for that part
-    #this is going to be fucking massive
 
-    final_boss = world.get_location("Boss Defeated")
-    add_rule(final_boss, lambda state: state.has_all(!!!!!PUT PASSWORDS HERE WITH "or" ENOUGH TO GET THEM ALL TOGETHER))
+    req0 = True_()
+    req1 = HasAny("Water Bubbles","Bubble Bounce")
+    req2 = Has("Bubble Bounce")
+    req3 = HasAny("Lightning Bubbles","Two Player Mode")
+    req3b = Has("Lightning Bubbles")
+    req4 = HasAny("Water Bubbles","Lightning Bubbles")
+    req5 = HasAll("Bubble Bounce","Fire Bubbles")
+    req6 = Has("Fire Bubbles")
+    req7 = HasAny("Lightning Bubbles","Bubble Bounce")
+    req8 = Has("Bubble Bounce") & HasAny("Fire Bubbles","Two Player Mode")
+    #req8b = req5
+    requirements = [req0, req1, req2, req3, req4, req5, req6, req7, req8, req3b]
 
-def set_completion_condition(world: BubbleBobbleWorld) -> None:
-    world.multiworld.completion_condition[world.player] = lambda state: state.has("Victory", world.player)
+    def check_requirement(req):
+        setreq = req
+        if world.options.lock_two_player_mode and setreq = 3: setreq = 9
+        elif if world.options.lock_two_player_mode and setreq = 8: setreq = 5
+        return requirements[setreq]
+
+    if not world.options.separate_super_bubble_bobble:
+        if not world.options.lock_super_bubble_bobble:
+            for level in levels.database:
+                passwordreq = False_()
+                for password in levels.database.passwords:
+                    passwordreq |= HasAll(*password)
+                for suppassword in levels.database.supers:
+                    passwordreq |= HasAll(*suppassword)
+                world.set_rule(world.get_location(level.lev),passwordreq & check_requirement(level.req))
+        else:
+            for level in levels.database:
+                passwordreq = False_()
+                suppassreq = False_()
+                for password in levels.database.passwords:
+                    passwordreq |= HasAll(*password)
+                for suppassword in levels.database.supers:
+                    suppassreq |= HasAll(*suppassword)
+                world.set_rule(world.get_location(level.lev),((suppassreq & Has("Super Bubble Bobble")) | passwordreq) & check_requirement(level.req))
+    else:
+        if not world.options.lock_super_bubble_bobble:
+            for level in levels.database:
+                passwordreq = False_()
+                suppassreq = False_()
+                for password in levels.database.passwords:
+                    passwordreq |= HasAll(*password)
+                for suppassword in levels.database.supers:
+                    suppassreq |= HasAll(*suppassword)
+                world.set_rule(world.get_location(level.lev),passwordreq & check_requirement(level.req))
+                world.set_rule(world.get_location(level.sup),suppassreq & check_requirement(level.req))
+        else:
+            for level in levels.database:
+                passwordreq = False_()
+                suppassreq = False_()
+                for password in levels.database.passwords:
+                    passwordreq |= HasAll(*password)
+                for suppassword in levels.database.supers:
+                    suppassreq |= HasAll(*suppassword)
+                world.set_rule(world.get_location(level.lev),passwordreq & check_requirement(level.req))
+                world.set_rule(world.get_location(level.sup),suppassreq & Has("Super Bubble Bobble") & check_requirement(level.req))
+
+
+
+#####REDO THIS, ALL THIS
+    #final_boss = world.get_location("Boss Defeated")
+    #add_rule(final_boss, lambda state: state.has_all(!!!!!PUT PASSWORDS HERE WITH "or" ENOUGH TO GET THEM ALL TOGETHER))
+
+#def set_completion_condition(world: BubbleBobbleWorld) -> None:
+    #world.multiworld.completion_condition[world.player] = lambda state: state.has("Victory", world.player)
