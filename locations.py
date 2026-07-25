@@ -264,4 +264,5 @@ def create_regular_locations(world: BubbleBobbleWorld) -> None:
         bubblebobble.add_locations(supers, BubbleBobbleLocation)
 
 def create_events(world: BubbleBobbleWorld) -> None:
+    bubblebobble = world.get_region("Bubble Bobble")
     bubblebobble.add_event("Boss Defeated", "Victory", location_type=BubbleBobbleLocation, item_type=items.BubbleBobbleItem)

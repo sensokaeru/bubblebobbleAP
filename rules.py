@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rule_builder.options import OptionFilter
-from rule_builder.rules import Has, HasAll, Rule, HasAny
+from rule_builder.rules import Has, HasAll, Rule, HasAny, False_, True_, CanReachLocation
 
 from BaseClasses import CollectionState
 
@@ -43,22 +43,22 @@ def set_all_location_rules(world: BubbleBobbleWorld) -> None:
         elif world.options.lock_two_player_mode and setreq == 8: setreq = 5
         return requirements[setreq]
 
-    if not world.options.separate_super_bubble_bobble:
-        if not world.options.lock_super_bubble_bobble:
+    if not world.options.separate_super_bubble_bobble_levels:
+        if not world.options.lock_super_bubble_bobble_levels:
             for level in levels.database:
                 passwordreq = False_()
-                for password in levels.database.passwords:
+                for password in level.passwords:
                     passwordreq |= HasAll(*password)
-                for suppassword in levels.database.supers:
+                for suppassword in level.supers:
                     passwordreq |= HasAll(*suppassword)
                 world.set_rule(world.get_location(level.lev),passwordreq & check_requirement(level.req))
         else:
             for level in levels.database:
                 passwordreq = False_()
                 suppassreq = False_()
-                for password in levels.database.passwords:
+                for password in level.passwords:
                     passwordreq |= HasAll(*password)
-                for suppassword in levels.database.supers:
+                for suppassword in level.supers:
                     suppassreq |= HasAll(*suppassword)
                 world.set_rule(world.get_location(level.lev),((suppassreq & Has("Super Bubble Bobble")) | passwordreq) & check_requirement(level.req))
         if world.options.require_best_ending and world.options.lock_two_player_mode: world.set_rule(world.get_location("Boss Defeated"),(CanReachLocation("Level 99") | CanReachLocation("Level B2")) & HasAll("Lightning Bubbles","Drug of Thunder","Two Player Mode"))
@@ -68,9 +68,9 @@ def set_all_location_rules(world: BubbleBobbleWorld) -> None:
             for level in levels.database:
                 passwordreq = False_()
                 suppassreq = False_()
-                for password in levels.database.passwords:
+                for password in level.passwords:
                     passwordreq |= HasAll(*password)
-                for suppassword in levels.database.supers:
+                for suppassword in level.supers:
                     suppassreq |= HasAll(*suppassword)
                 world.set_rule(world.get_location(level.lev),passwordreq & check_requirement(level.req))
                 world.set_rule(world.get_location(level.sup),suppassreq & check_requirement(level.req))
@@ -78,9 +78,9 @@ def set_all_location_rules(world: BubbleBobbleWorld) -> None:
             for level in levels.database:
                 passwordreq = False_()
                 suppassreq = False_()
-                for password in levels.database.passwords:
+                for password in level.passwords:
                     passwordreq |= HasAll(*password)
-                for suppassword in levels.database.supers:
+                for suppassword in level.supers:
                     suppassreq |= HasAll(*suppassword)
                 world.set_rule(world.get_location(level.lev),passwordreq & check_requirement(level.req))
                 world.set_rule(world.get_location(level.sup),suppassreq & Has("Super Bubble Bobble") & check_requirement(level.req))
