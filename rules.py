@@ -39,8 +39,8 @@ def set_all_location_rules(world: BubbleBobbleWorld) -> None:
 
     def check_requirement(req):
         setreq = req
-        if world.options.lock_two_player_mode and setreq = 3: setreq = 9
-        elif if world.options.lock_two_player_mode and setreq = 8: setreq = 5
+        if world.options.lock_two_player_mode and setreq == 3: setreq = 9
+        elif if world.options.lock_two_player_mode and setreq == 8: setreq = 5
         return requirements[setreq]
 
     if not world.options.separate_super_bubble_bobble:
