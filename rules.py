@@ -61,6 +61,8 @@ def set_all_location_rules(world: BubbleBobbleWorld) -> None:
                 for suppassword in levels.database.supers:
                     suppassreq |= HasAll(*suppassword)
                 world.set_rule(world.get_location(level.lev),((suppassreq & Has("Super Bubble Bobble")) | passwordreq) & check_requirement(level.req))
+        if world.options.require_best_ending and world.options.lock_two_player_mode: world.set_rule(world.get_location("Boss Defeated"),(CanReachLocation("Level 99") | CanReachLocation("Level B2")) & HasAll("Lightning Bubbles","Drug of Thunder","Two Player Mode"))
+        else: world.set_rule(world.get_location("Boss Defeated"),(CanReachLocation("Level 99") | CanReachLocation("Level B2")) & HasAll("Lightning Bubbles","Drug of Thunder"))
     else:
         if not world.options.lock_super_bubble_bobble:
             for level in levels.database:
@@ -82,12 +84,9 @@ def set_all_location_rules(world: BubbleBobbleWorld) -> None:
                     suppassreq |= HasAll(*suppassword)
                 world.set_rule(world.get_location(level.lev),passwordreq & check_requirement(level.req))
                 world.set_rule(world.get_location(level.sup),suppassreq & Has("Super Bubble Bobble") & check_requirement(level.req))
+        if world.options.require_best_ending and world.options.lock_two_player_mode: world.set_rule(world.get_location("Boss Defeated"),(CanReachLocation("Level 99") | CanReachLocation("Level B2") | CanReachLocation("Super 99") | CanReachLocation("Super B2")) & HasAll("Lightning Bubbles","Drug of Thunder","Two Player Mode"))
+        else: world.set_rule(world.get_location("Boss Defeated"),(CanReachLocation("Level 99") | CanReachLocation("Level B2") | CanReachLocation("Super 99") | CanReachLocation("Super B2")) & HasAll("Lightning Bubbles","Drug of Thunder"))
+   
+def set_completion_condition(world: BubbleBobbleWorld) -> None:
 
-
-
-#####REDO THIS, ALL THIS
-    #final_boss = world.get_location("Boss Defeated")
-    #add_rule(final_boss, lambda state: state.has_all(!!!!!PUT PASSWORDS HERE WITH "or" ENOUGH TO GET THEM ALL TOGETHER))
-
-#def set_completion_condition(world: BubbleBobbleWorld) -> None:
-    #world.multiworld.completion_condition[world.player] = lambda state: state.has("Victory", world.player)
+    world.set_completion_rule(Has("Victory"))

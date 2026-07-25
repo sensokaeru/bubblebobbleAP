@@ -265,4 +265,3 @@ def create_regular_locations(world: BubbleBobbleWorld) -> None:
 
 def create_events(world: BubbleBobbleWorld) -> None:
     bubblebobble.add_event("Boss Defeated", "Victory", location_type=BubbleBobbleLocation, item_type=items.BubbleBobbleItem)
-    ###figure out if I need to do additional events for different logic for different settings for end boss

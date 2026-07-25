@@ -20,6 +20,7 @@ class LockSupers(Toggle):
 class LockTwoPlayer(Toggle):
     """
     Turn this on to require a Two Player Mode item to unlock Two Player Mode.
+    WARNING!!! This CAN be logically required for some levels.
     """
 
     display_name = "Lock Two Player Mode"
