@@ -229,7 +229,7 @@ def create_all_items(world: BubbleBobbleWorld) -> None:
         for x in second_starting_password:
             if x not in starting_items: starting_items.append(x)
 
-        if len(starting_items) > 7: return generatestartinglevels()
+        if len(starting_items) > 8: return generatestartinglevels()
         else: return starting_items
 
     for x in generatestartinglevels():
@@ -237,9 +237,9 @@ def create_all_items(world: BubbleBobbleWorld) -> None:
         world.push_precollected(world.create_item(x))
 
     if world.options.lock_super_bubble_bobble_levels:
-        itempool.add(world.create_item("Super Bubble Bobble"))
+        itempool.append(world.create_item("Super Bubble Bobble"))
     if world.options.lock_two_player_mode:
-        itempool.add(world.create_item("Two Player Mode"))
+        itempool.append(world.create_item("Two Player Mode"))
 
     number_of_items = len(itempool)
     number_of_unfilled_locations = len(world.multiworld.get_unfilled_locations(world.player))

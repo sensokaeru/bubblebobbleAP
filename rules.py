@@ -64,7 +64,7 @@ def set_all_location_rules(world: BubbleBobbleWorld) -> None:
         if world.options.require_best_ending and world.options.lock_two_player_mode: world.set_rule(world.get_location("Boss Defeated"),(CanReachLocation("Level 99") | CanReachLocation("Level B2")) & HasAll("Lightning Bubbles","Drug of Thunder","Two Player Mode"))
         else: world.set_rule(world.get_location("Boss Defeated"),(CanReachLocation("Level 99") | CanReachLocation("Level B2")) & HasAll("Lightning Bubbles","Drug of Thunder"))
     else:
-        if not world.options.lock_super_bubble_bobble:
+        if not world.options.lock_super_bubble_bobble_levels:
             for level in levels.database:
                 passwordreq = False_()
                 suppassreq = False_()
