@@ -15,10 +15,10 @@ class BubbleBobbleWorld(World):
 
     game = "Bubble Bobble"
 
-    web = web_world.BubbleBobbleWorld()
+    web = web_world.BubbleBobbleWebWorld()
 
     options_dataclass = bubblebobble_options.BubbleBobbleOptions
-    options: bubblebobble_options.bubblebobbleOptions
+    options: bubblebobble_options.BubbleBobbleOptions
 
     location_name_to_id = locations.LOCATION_NAME_TO_ID
     item_name_to_id = items.ITEM_NAME_TO_ID
