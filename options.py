@@ -96,7 +96,7 @@ option_presets = {
         "separate_super_bubble_bobble_levels": False,
         "lock_super_bubble_bobble_levels": False,
         "lock_two_player_mode": False,
-        "require_best_ending": true,
+        "require_best_ending": True,
         "increase_starting_lives_count": 7,
         "timer_trap_chance": 20,
     },
