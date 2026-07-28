@@ -13,6 +13,7 @@ class SuperLevels(Toggle):
 class LockSupers(Toggle):
     """
     Turn this on to require a Super Bubble Bobble item to unlock Super Bubble Bobble levels.
+    Enabling this causes you to start with additional starting levels due to restricting the logic too much.
     """
 
     display_name = "Lock Super Bubble Bobble levels"

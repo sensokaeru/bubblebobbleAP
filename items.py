@@ -212,15 +212,25 @@ def create_all_items(world: BubbleBobbleWorld) -> None:
     ]
 
     def generatestartinglevels():
-        first_starting_level = world.random.randrange(len(levels.database))
 
-        while levels.database[first_starting_level].req > 0:
+        print("separate supers", world.options.separate_super_bubble_bobble_levels)
+        print("lock supers", world.options.lock_super_bubble_bobble_levels)
+        print("lock 2P", world.options.lock_two_player_mode)
+        print("best ending", world.options.require_best_ending)
+
+        first_starting_level = world.random.randrange(len(levels.database))
+        print("first", first_starting_level)
+
+        while levels.database[first_starting_level].req > 0 or first_starting_level == (len(levels.database) - 1):
             first_starting_level = world.random.randrange(len(levels.database))
+            print("retry first", first_starting_level)
 
         second_starting_level = world.random.randrange(len(levels.database))
+        print("second", second_starting_level)
 
-        while levels.database[second_starting_level].req > 0 or second_starting_level == first_starting_level:
+        while levels.database[second_starting_level].req > 0 or second_starting_level == first_starting_level or second_starting_level == (len(levels.database) - 1):
             second_starting_level = world.random.randrange(len(levels.database))
+            print("retry second", second_starting_level)
 
         first_starting_password = levels.database[first_starting_level].passwords[world.random.randrange(len(levels.database[first_starting_level].passwords))]
         second_starting_password = levels.database[second_starting_level].passwords[world.random.randrange(len(levels.database[second_starting_level].passwords))]
@@ -229,7 +239,8 @@ def create_all_items(world: BubbleBobbleWorld) -> None:
         for x in second_starting_password:
             if x not in starting_items: starting_items.append(x)
 
-        if len(starting_items) > 8: return generatestartinglevels()
+        if len(starting_items) > 8 and not world.options.lock_super_bubble_bobble_levels: return generatestartinglevels()
+        elif len(starting_items) < 8 and world.options.lock_super_bubble_bobble_levels: return generatestartinglevels()
         else: return starting_items
 
     for x in generatestartinglevels():
