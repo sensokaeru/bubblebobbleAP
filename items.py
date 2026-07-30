@@ -213,10 +213,10 @@ def create_all_items(world: BubbleBobbleWorld) -> None:
 
     def generatestartinglevels():
 
-        #print("separate supers", world.options.separate_super_bubble_bobble_levels)
-        #print("lock supers", world.options.lock_super_bubble_bobble_levels)
-        #print("lock 2P", world.options.lock_two_player_mode)
-        #print("best ending", world.options.require_best_ending)
+        print("separate supers", world.options.separate_super_bubble_bobble_levels)
+        print("lock supers", world.options.lock_super_bubble_bobble_levels)
+        print("lock 2P", world.options.lock_two_player_mode)
+        print("best ending", world.options.require_best_ending)
 
         first_starting_level = world.random.randrange(len(levels.database))
         #print("first", first_starting_level)
@@ -239,8 +239,8 @@ def create_all_items(world: BubbleBobbleWorld) -> None:
         for x in second_starting_password:
             if x not in starting_items: starting_items.append(x)
 
-        if len(starting_items) > 8 and not world.options.lock_super_bubble_bobble_levels: return generatestartinglevels()
-        elif len(starting_items) < 8 and world.options.lock_super_bubble_bobble_levels: return generatestartinglevels()
+        if (len(starting_items) > 9 or len(starting_items) < 8) and not world.options.lock_super_bubble_bobble_levels: return generatestartinglevels()
+        elif len(starting_items) < 9 and world.options.lock_super_bubble_bobble_levels: return generatestartinglevels()
         else: return starting_items
 
     for x in generatestartinglevels():

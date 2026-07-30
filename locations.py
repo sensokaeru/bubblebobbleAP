@@ -122,7 +122,6 @@ levels = {
     "Level B0": 1110,
     "Level B1": 1111,
     "Level B2": 1112,
-    "Level B3": 1113,
 }
 
 supers = {
@@ -238,7 +237,6 @@ supers = {
     "Super B0": 2110,
     "Super B1": 2111,
     "Super B2": 2112,
-    "Super B3": 2113,
 }
 
 LOCATION_NAME_TO_ID = {}

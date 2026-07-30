@@ -1,5 +1,6 @@
 import logging
 from typing import TYPE_CHECKING
+import json
 
 from NetUtils import ClientStatus
 
@@ -59,42 +60,49 @@ class BubbleBobbleClient(BizHawkClient):
 
     def on_package(self, ctx: "BizHawkClientContext", cmd: str, args: dict) -> None:
         if cmd == "Connected":
-            print('hopefully fucking connected')
-            #print(args)
-            #ctx.slot_data = args["slot_data"]
-            #print(ctx.slot_data)
+            slotdata = args['slot_data']
+            self.separate_supers = bool(slotdata['separate_super_bubble_bobble_levels'])
+            self.lock_supers = bool(slotdata['lock_super_bubble_bobble_levels'])
+            self.lock_2p = bool(slotdata['lock_two_player_mode'])
+            self.require_best = bool(slotdata['require_best_ending'])
 
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
+
+#reminder: the command for sending text to the client is logger.info()
+
         ids_received = self.compile_ids(ctx)
         extra_starting_lives = ids_received.count(2) + 3
         try:
-            previous_enemy_count = current_enemy_count
+            self.previous_enemy_count = self.current_enemy_count
         except:
-            previous_enemy_count = 0
-
-        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0xCA38, 1, "System Bus"), (0x0496, 1, "RAM")]) #REMEMBER THAT THIS IS A LIST OF BYTES
+            self.previous_enemy_count = 0
+            
+#REMEMBER THAT THIS IS A LIST OF BYTES
+        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0xCA38, 1, "System Bus"), (0x0496, 1, "RAM")])
         current_level = int.from_bytes(read_data[0])
         p1_lives = int.from_bytes(read_data[1])
         p2_lives = int.from_bytes(read_data[2])
         current_starting_lives = int.from_bytes(read_data[3])
-        current_enemy_count = int.from_bytes(read_data[4])
+        self.current_enemy_count = int.from_bytes(read_data[4])
 
         if current_starting_lives != extra_starting_lives:
             await bizhawk.write(ctx.bizhawk_ctx, [(0x0042, extra_starting_lives.to_bytes(1), "RAM")])
 
         if current_level > 0 and (p1_lives > 0 or p2_lives > 0):
+            check = self.levelcheck(ctx, current_level, 0)
             #once I figure out how to check for boss fights, run self.levelcheck() for both 99 and B2
-            if not self.levelcheck(ctx, current_level, 0):
-                await bizhawk.write(ctx.bizhawk_ctx, [(0x002E, b'\x00', "RAM"), (0x0042, b'\x00', "RAM")])
-#            if ctx.slot_data["lock_two_player_mode"] and 8 not in ids_received and p2_lives > 0:
-#                await bizhawk.write(ctx.bizhawk_ctx, [(0x0042, b'\x00', "RAM")])
-            if current_enemy_count == 0 and previous_enemy_count > 0:
-                level_id = current_level + 1000
-                level_id = list(level_id)
-                await ctx.send_msgs([{
-                    "cmd": "LocationChecks",
-                    "locations": level_id
-                }])
+            if check and self.previous_enemy_count > 0:
+                if self.lock_2p and 8 not in ids_received and p2_lives > 0:
+                    await bizhawk.write(ctx.bizhawk_ctx, [(0x0042, b'\x00', "RAM")])
+                if self.current_enemy_count == 0:
+                    level_id = current_level + 1000
+                    #if supers are separate, and a super level was beaten, add another 1000
+                    level_id = [level_id]
+                    await ctx.send_msgs([{
+                        "cmd": "LocationChecks",
+                        "locations": level_id
+                    }])
+            elif not check and self.current_enemy_count > 0: await bizhawk.write(ctx.bizhawk_ctx, [(0x002E, b'\x00', "RAM"), (0x0042, b'\x00', "RAM"), (0x0401, b'\x00', "RAM")])
 
 """
 define a self.timer_traps_applied to keep track of how many timer traps have been received and used
