@@ -6,8 +6,11 @@ from NetUtils import ClientStatus
 import worlds._bizhawk as bizhawk
 from worlds._bizhawk.client import BizHawkClient
 
+logger = logging.getLogger("Client")
+
 from . import levels
 #call levels data as levels.database
+from .items import ITEM_NAME_TO_ID
 
 if TYPE_CHECKING:
     from worlds._bizhawk.context import BizHawkClientContext
@@ -19,17 +22,29 @@ class BubbleBobbleClient(BizHawkClient):
     def __init__(self):
         super().__init__()
 
-    def levelcheck(self, ctx: "BizHawkClientContext", level: int):
+    def compile_ids(self, ctx: "BizHawkClientContext"):
+        ids = []
+        for items in ctx.items_received:
+            ids.append(int(items[0]))
+        return ids
+
+    def levelcheck(self, ctx: "BizHawkClientContext", level: int, purpose):
+        #purpose is 0 for checking levels for active gameplay or 1 for returning a valid password
         check = level - 1
-        passwords = levels.database[check].passwords + levels.database[check].supers
+        ids_received = self.compile_ids(ctx)
+        passwords = levels.database[check].passwords + levels.database[check].supers #once I figure out how to differentiate super levels, this part needs adjusting
         for password in passwords:
-            has_letter = 0
+            has_letter = []
             for letter in password:
-                if letter in ctx.items_received:
-                    has_letter += 1
-                    if has_letter == 5:
-                        return true
-        return false
+                #logger.info(f"comparing {letter} or {ITEM_NAME_TO_ID[letter]} to {ids_received}")
+                if ITEM_NAME_TO_ID[letter] in ids_received:
+                    has_letter.append(letter)
+                    if len(has_letter) == 5 and purpose == 0:
+                        #logger.info(has_letter)
+                        return True
+                    if len(has_letter) == 5 and purpose == 1:
+                        return has_letter
+        return False
 
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         rom_hash = await bizhawk.get_hash(ctx.bizhawk_ctx)
@@ -40,14 +55,46 @@ class BubbleBobbleClient(BizHawkClient):
             ctx.want_slot_data = True
             ctx.watcher_timeout = 0.1
             return True
-        else: return false
+        else: return False
+
+    def on_package(self, ctx: "BizHawkClientContext", cmd: str, args: dict) -> None:
+        if cmd == "Connected":
+            print('hopefully fucking connected')
+            #print(args)
+            #ctx.slot_data = args["slot_data"]
+            #print(ctx.slot_data)
 
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
-        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM")]) #REMEMBER THAT THIS IS A LIST OF BYTES
+        ids_received = self.compile_ids(ctx)
+        extra_starting_lives = ids_received.count(2) + 3
+        try:
+            previous_enemy_count = current_enemy_count
+        except:
+            previous_enemy_count = 0
+
+        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0xCA38, 1, "System Bus"), (0x0496, 1, "RAM")]) #REMEMBER THAT THIS IS A LIST OF BYTES
         current_level = int.from_bytes(read_data[0])
-        if current_level > 0x00:
-            if not self.levelcheck(ctx.bizhawk_ctx, current_level):
-                await bizhawk.write(ctx.bizhawk_ctx, [(0x002E, 0, "RAM"), (0x0042, 0, "RAM")])
+        p1_lives = int.from_bytes(read_data[1])
+        p2_lives = int.from_bytes(read_data[2])
+        current_starting_lives = int.from_bytes(read_data[3])
+        current_enemy_count = int.from_bytes(read_data[4])
+
+        if current_starting_lives != extra_starting_lives:
+            await bizhawk.write(ctx.bizhawk_ctx, [(0x0042, extra_starting_lives.to_bytes(1), "RAM")])
+
+        if current_level > 0 and (p1_lives > 0 or p2_lives > 0):
+            #once I figure out how to check for boss fights, run self.levelcheck() for both 99 and B2
+            if not self.levelcheck(ctx, current_level, 0):
+                await bizhawk.write(ctx.bizhawk_ctx, [(0x002E, b'\x00', "RAM"), (0x0042, b'\x00', "RAM")])
+#            if ctx.slot_data["lock_two_player_mode"] and 8 not in ids_received and p2_lives > 0:
+#                await bizhawk.write(ctx.bizhawk_ctx, [(0x0042, b'\x00', "RAM")])
+            if current_enemy_count == 0 and previous_enemy_count > 0:
+                level_id = current_level + 1000
+                level_id = list(level_id)
+                await ctx.send_msgs([{
+                    "cmd": "LocationChecks",
+                    "locations": level_id
+                }])
 
 """
 define a self.timer_traps_applied to keep track of how many timer traps have been received and used

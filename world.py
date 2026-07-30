@@ -42,8 +42,4 @@ class BubbleBobbleWorld(World):
         return items.get_random_filler_item_name(self)
 
     def fill_slot_data(self) -> Mapping[str, Any]:
-        pass
-        #fill in slot data eventually, below is APQuest's example
-    #    return self.options.as_dict(
-    #        "hard_mode", "hammer", "extra_starting_chest", "confetti_explosiveness", "player_sprite"
-    #    )
+        return self.options.as_dict("separate_super_bubble_bobble_levels", "lock_super_bubble_bobble_levels", "lock_two_player_mode", "require_best_ending")
