@@ -20,6 +20,8 @@ class BubbleBobbleClient(BizHawkClient):
     game = "Bubble Bobble"
     system = "NES"
 
+    password_addresses = [ 0x0502, 0x0503, 0x0504, 0x0505, 0x0506 ]
+
     def __init__(self):
         super().__init__()
 
@@ -54,7 +56,7 @@ class BubbleBobbleClient(BizHawkClient):
             ctx.game = self.game
             ctx.items_handling = 0b111
             ctx.want_slot_data = True
-            ctx.watcher_timeout = 0.1
+            ctx.watcher_timeout = 0.15
             return True
         else: return False
 
@@ -78,12 +80,13 @@ class BubbleBobbleClient(BizHawkClient):
             self.previous_enemy_count = 0
             
 #REMEMBER THAT THIS IS A LIST OF BYTES
-        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0xCA38, 1, "System Bus"), (0x0496, 1, "RAM")])
+        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0xCA38, 1, "System Bus"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM")])
         current_level = int.from_bytes(read_data[0])
         p1_lives = int.from_bytes(read_data[1])
         p2_lives = int.from_bytes(read_data[2])
         current_starting_lives = int.from_bytes(read_data[3])
         self.current_enemy_count = int.from_bytes(read_data[4])
+        current_menu_selection = int.from_bytes(read_data[10])
 
         if current_starting_lives != extra_starting_lives:
             await bizhawk.write(ctx.bizhawk_ctx, [(0x0042, extra_starting_lives.to_bytes(1), "RAM")])
@@ -102,8 +105,34 @@ class BubbleBobbleClient(BizHawkClient):
                         "cmd": "LocationChecks",
                         "locations": level_id
                     }])
+                #else: check for timer traps here
             elif not check and self.current_enemy_count > 0: await bizhawk.write(ctx.bizhawk_ctx, [(0x002E, b'\x00', "RAM"), (0x0042, b'\x00', "RAM"), (0x0401, b'\x00', "RAM")])
 
+        elif current_menu_selection == 4:
+            try:
+                self.previous_password_int = self.selected_password_int
+            except:
+                self.previous_password_int = [-1, -1, -1, -1, -1]
+            selected_password_bytes = read_data[5:10]
+            self.selected_password_int = []
+            for letter in selected_password_bytes:
+                self.selected_password_int.append(int.from_bytes(letter))
+            selected_password_ids = []
+            for letter in range(len(self.selected_password_int)):
+                id = (letter + 1) * 10 + self.selected_password_int[letter]
+                selected_password_ids.append(id)
+            for id in range(len(selected_password_ids)):
+                check_id = selected_password_ids[id]
+                while check_id not in ids_received:
+                    if self.selected_password_int[id] > self.previous_password_int[id]:
+                        check_id += 1
+                        if check_id % 10 == 0: check_id -= 10
+                    elif self.selected_password_int[id] < self.previous_password_int[id]:
+                        check_id -= 1
+                        if check_id % 10 == 9: check_id += 10
+                while check_id >= 10: check_id -= 10
+                if check_id != self.selected_password_int[id]: await bizhawk.write(ctx.bizhawk_ctx, [(self.password_addresses[id], check_id.to_bytes(1), "RAM")])
+                
 """
 define a self.timer_traps_applied to keep track of how many timer traps have been received and used
 network protocol document explains how to save this on the server if needed
