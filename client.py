@@ -63,6 +63,7 @@ class BubbleBobbleClient(BizHawkClient):
 
     def on_package(self, ctx: "BizHawkClientContext", cmd: str, args: dict) -> None:
         self.compile_ids(ctx)
+        self.traps_received = self.ids_received.count(1)
         if cmd == "Connected":
             slotdata = args['slot_data']
             self.separate_supers = bool(slotdata['separate_super_bubble_bobble_levels'])
@@ -70,6 +71,15 @@ class BubbleBobbleClient(BizHawkClient):
             self.lock_2p = bool(slotdata['lock_two_player_mode'])
             self.require_best = bool(slotdata['require_best_ending'])
             if 2 in self.ids_received: checkstartinglives()
+            await ctx.send_msgs([{
+                "cmd": "Get",
+                "keys": ["traps_applied"]
+            }])
+
+        if cmd == "Retrieved":
+            if args["keys"]["traps_applied"] == null:
+                self.traps_applied = 0
+            else: self.traps_applied = args["keys"]["traps_applied"]
 
         if cmd == "ReceivedItems":
             check_received = []
@@ -87,13 +97,14 @@ class BubbleBobbleClient(BizHawkClient):
             self.previous_enemy_count = 0
             
 #REMEMBER THAT THIS IS A LIST OF BYTES
-        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM")])
+        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM")])
         current_level = int.from_bytes(read_data[0])
         p1_lives = int.from_bytes(read_data[1])
         p2_lives = int.from_bytes(read_data[2])
         self.current_enemy_count = int.from_bytes(read_data[3])
         current_menu_selection = int.from_bytes(read_data[9])
         current_letter_position = int.from_bytes(read_data[10])
+        current_timer = int.from_bytes(read_data[11])
 
         if current_level > 0 and (p1_lives > 0 or p2_lives > 0):
             check = self.levelcheck(ctx, current_level, 0)
@@ -101,6 +112,7 @@ class BubbleBobbleClient(BizHawkClient):
             if check and self.previous_enemy_count > 0:
                 if self.lock_2p and 8 not in self.ids_received and p2_lives > 0:
                     await bizhawk.write(ctx.bizhawk_ctx, [(0x0042, b'\x00', "RAM")])
+
                 if self.current_enemy_count == 0:
                     level_id = current_level + 1000
                     #if supers are separate, and a super level was beaten, add another 1000
@@ -109,7 +121,18 @@ class BubbleBobbleClient(BizHawkClient):
                         "cmd": "LocationChecks",
                         "locations": level_id
                     }])
-                #else: check for timer traps here
+
+                elif current_timer >= 2 & self.traps_applied < self.traps_received:
+                    await bizhawk.write(ctx.bizhawk_ctx, [(0x040D,b'\x00', "RAM")])
+                    self.traps_applied += 1
+                    await ctx.send_msgs([{
+                        "cmd": "Set",
+                        "key": ["traps_applied"]
+                        "default": 0
+                        "want_reply": False
+                        "operations": {"operation": "replace", "value": self.traps_applied}
+                    }])
+
             elif not check and self.current_enemy_count > 0: await bizhawk.write(ctx.bizhawk_ctx, [(0x002E, b'\x00', "RAM"), (0x0042, b'\x00', "RAM"), (0x0401, b'\x00', "RAM")])
 
         elif current_menu_selection == 4:
@@ -129,8 +152,8 @@ class BubbleBobbleClient(BizHawkClient):
                 elif self.selected_password_int[id] < self.previous_password_int[id]:
                     check_selected_letter_id -= 1
                     if check_selected_letter_id % 10 == 9: check_selected_letter_id += 10
-                while check_selected_letter_id >= 10: check_selected_letter_id -= 10
-                await bizhawk.write(ctx.bizhawk_ctx, [(password_selector_addresses[current_letter_position], check_selected_letter_id.to_bytes(1), "RAM")])
+            while check_selected_letter_id >= 10: check_selected_letter_id -= 10
+            await bizhawk.write(ctx.bizhawk_ctx, [(password_selector_addresses[current_letter_position], check_selected_letter_id.to_bytes(1), "RAM")])
 
 """
 define a self.timer_traps_applied to keep track of how many timer traps have been received and used
