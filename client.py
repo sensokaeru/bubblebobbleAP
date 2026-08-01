@@ -13,7 +13,7 @@ from . import levels
 #call levels data as levels.database
 from .items import ITEM_NAME_TO_ID
 
-password_selector_addresses = [ 0x0502, 0x0503, 0x0504, 0x0505, 0x0506 ]
+password_selector_addresses = [ 1282, 0x0503, 0x0504, 0x0505, 0x0506 ]
 
 if TYPE_CHECKING:
     from worlds._bizhawk.context import BizHawkClientContext
@@ -54,12 +54,17 @@ class BubbleBobbleClient(BizHawkClient):
         rom_hash = await bizhawk.get_hash(ctx.bizhawk_ctx)
         rom_system = await bizhawk.get_system(ctx.bizhawk_ctx)
         if rom_hash == "B220CB06A7E23C55A982FD75B32554D0BF511B7B" and rom_system == "NES":
+            await bizhawk.write(ctx.bizhawk_ctx, [(0x0402, b'\x00', "RAM")])
             ctx.game = self.game
             ctx.items_handling = 0b111
             ctx.want_slot_data = True
             ctx.watcher_timeout = 0.1
             return True
         else: return False
+
+    async def checktraps(self, ctx: "BizHawkClientContext"):
+        logger.info('ran checktraps')
+        await ctx.send_msgs([{"cmd": "Get", "keys": ["bubbobtraps_applied"]}])
 
     def on_package(self, ctx: "BizHawkClientContext", cmd: str, args: dict) -> None:
         self.compile_ids(ctx)
@@ -70,21 +75,20 @@ class BubbleBobbleClient(BizHawkClient):
             self.lock_supers = bool(slotdata['lock_super_bubble_bobble_levels'])
             self.lock_2p = bool(slotdata['lock_two_player_mode'])
             self.require_best = bool(slotdata['require_best_ending'])
+            self.slot = args["slot"]
             if 2 in self.ids_received: checkstartinglives()
-            await ctx.send_msgs([{
-                "cmd": "Get",
-                "keys": ["traps_applied"]
-            }])
+            self.checktraps(ctx)
 
         if cmd == "Retrieved":
-            if args["keys"]["traps_applied"] == null:
-                self.traps_applied = 0
-            else: self.traps_applied = args["keys"]["traps_applied"]
+            if "bubbobtraps_applied" in args["keys"]:
+                if args["keys"]["bubbobtraps_applied"] == null:
+                    self.traps_applied = 0
+                else: self.traps_applied = args["keys"]["bubbobtraps_applied"]
 
         if cmd == "ReceivedItems":
             check_received = []
             for x in args['items']:
-                check_received.append(x['item'])
+                check_received.append(x.item)
             if 2 in check_received: checkstartinglives()
 
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
@@ -127,10 +131,10 @@ class BubbleBobbleClient(BizHawkClient):
                     self.traps_applied += 1
                     await ctx.send_msgs([{
                         "cmd": "Set",
-                        "key": ["traps_applied"]
-                        "default": 0
-                        "want_reply": False
-                        "operations": {"operation": "replace", "value": self.traps_applied}
+                        "key": "bubbobtraps_applied",
+                        "default": {self.slot : 0},
+                        "want_reply": False,
+                        "operations": [{"operation": "replace", "value": {self.slot : self.traps_applied}}]
                     }])
 
             elif not check and self.current_enemy_count > 0: await bizhawk.write(ctx.bizhawk_ctx, [(0x002E, b'\x00', "RAM"), (0x0042, b'\x00', "RAM"), (0x0401, b'\x00', "RAM")])
@@ -144,16 +148,22 @@ class BubbleBobbleClient(BizHawkClient):
             self.selected_password_int = []
             for letter in selected_password_bytes:
                 self.selected_password_int.append(int.from_bytes(letter))
-            check_selected_letter_id = ((current_letter_position - 1) * 10) + self.selected_password_int[current_letter_position]
-            while check_selected_letter_id not in self.ids_received:
-                if self.selected_password_int[id] > self.previous_password_int[id]:
-                    check_selected_letter_id += 1
-                    if check_selected_letter_id % 10 == 0: check_selected_letter_id -= 10
-                elif self.selected_password_int[id] < self.previous_password_int[id]:
-                    check_selected_letter_id -= 1
-                    if check_selected_letter_id % 10 == 9: check_selected_letter_id += 10
-            while check_selected_letter_id >= 10: check_selected_letter_id -= 10
-            await bizhawk.write(ctx.bizhawk_ctx, [(password_selector_addresses[current_letter_position], check_selected_letter_id.to_bytes(1), "RAM")])
+            check_selected_letter_id = ((current_letter_position + 1) * 10) + self.selected_password_int[current_letter_position]
+            if check_selected_letter_id not in self.ids_received:
+                while check_selected_letter_id not in self.ids_received:
+                    if self.selected_password_int[current_letter_position] > self.previous_password_int[current_letter_position]:
+                        check_selected_letter_id += 1
+                        if check_selected_letter_id % 10 == 0: check_selected_letter_id -= 10
+                    elif self.selected_password_int[current_letter_position] < self.previous_password_int[current_letter_position]:
+                        check_selected_letter_id -= 1
+                        if check_selected_letter_id % 10 == 9: check_selected_letter_id += 10
+                while check_selected_letter_id >= 10: check_selected_letter_id -= 10
+                password_address = 1282 + current_letter_position
+                logger.info(f'attempting to write {check_selected_letter_id.to_bytes(1)} to {hex(password_address)}')
+                write_response = await bizhawk.write(ctx.bizhawk_ctx, [(hex(password_address), check_selected_letter_id.to_bytes(1), "RAM")])
+                logger.info(write_response)
+
+##### LOOK UP "CommandProcessor" in existing apworlds
 
 """
 define a self.timer_traps_applied to keep track of how many timer traps have been received and used
