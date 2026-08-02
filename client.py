@@ -13,7 +13,7 @@ from . import levels
 #call levels data as levels.database
 from .items import ITEM_NAME_TO_ID
 
-password_selector_addresses = [ 1282, 0x0503, 0x0504, 0x0505, 0x0506 ]
+password_selector_addresses = [ 0x0502, 0x0503, 0x0504, 0x0505, 0x0506 ]
 
 if TYPE_CHECKING:
     from worlds._bizhawk.context import BizHawkClientContext
@@ -30,7 +30,7 @@ class BubbleBobbleClient(BizHawkClient):
         for items in ctx.items_received:
             self.ids_received.append(int(items[0]))
 
-    def levelcheck(self, ctx: "BizHawkClientContext", level: int, purpose):
+    def levelcheck(self, ctx: "BizHawkClientContext", level: int, purpose: int):
         #purpose is 0 for checking levels for active gameplay or 1 for returning a valid password
         check = level - 1
         passwords = levels.database[check].passwords + levels.database[check].supers #once I figure out how to differentiate super levels, this part needs adjusting
@@ -46,6 +46,7 @@ class BubbleBobbleClient(BizHawkClient):
         return False
     
     async def checkstartinglives(self, ctx: "BizHawkClientContext"):
+        logger.info('ran checkstartinglives')
         self.starting_lives_should_be = self.ids_received.count(2) + 3
         current_starting_lives = await bizhawk.read(ctx.bizhawk_ctx,[(0xCA38, 1, "System Bus")])
         if self.starting_lives_should_be != current_starting_lives: await bizhawk.write(ctx.bizhawk_ctx, [(0x0042, extra_starting_lives.to_bytes(1), "RAM")])
@@ -77,7 +78,6 @@ class BubbleBobbleClient(BizHawkClient):
             self.require_best = bool(slotdata['require_best_ending'])
             self.slot = args["slot"]
             if 2 in self.ids_received: checkstartinglives()
-            self.checktraps(ctx)
 
         if cmd == "Retrieved":
             if "bubbobtraps_applied" in args["keys"]:
@@ -126,16 +126,19 @@ class BubbleBobbleClient(BizHawkClient):
                         "locations": level_id
                     }])
 
-                elif current_timer >= 2 & self.traps_applied < self.traps_received:
-                    await bizhawk.write(ctx.bizhawk_ctx, [(0x040D,b'\x00', "RAM")])
-                    self.traps_applied += 1
-                    await ctx.send_msgs([{
-                        "cmd": "Set",
-                        "key": "bubbobtraps_applied",
-                        "default": {self.slot : 0},
-                        "want_reply": False,
-                        "operations": [{"operation": "replace", "value": {self.slot : self.traps_applied}}]
-                    }])
+                else:
+                    try:
+                        if current_timer >= 2 & self.traps_applied < self.traps_received:
+                            await bizhawk.write(ctx.bizhawk_ctx, [(0x040D,b'\x00', "RAM")])
+                            self.traps_applied += 1
+                            await ctx.send_msgs([{
+                                "cmd": "Set",
+                                "key": "bubbobtraps_applied",
+                                "default": {self.slot : 0},
+                                "want_reply": False,
+                                "operations": [{"operation": "replace", "value": {self.slot : self.traps_applied}}]
+                            }])
+                    except: await self.checktraps(ctx)
 
             elif not check and self.current_enemy_count > 0: await bizhawk.write(ctx.bizhawk_ctx, [(0x002E, b'\x00', "RAM"), (0x0042, b'\x00', "RAM"), (0x0401, b'\x00', "RAM")])
 
@@ -150,6 +153,7 @@ class BubbleBobbleClient(BizHawkClient):
                 self.selected_password_int.append(int.from_bytes(letter))
             check_selected_letter_id = ((current_letter_position + 1) * 10) + self.selected_password_int[current_letter_position]
             if check_selected_letter_id not in self.ids_received:
+                if self.selected_password_int[current_letter_position] == self.previous_password_int[current_letter_position]: self.previous_password_int[current_letter_position] = -1
                 while check_selected_letter_id not in self.ids_received:
                     if self.selected_password_int[current_letter_position] > self.previous_password_int[current_letter_position]:
                         check_selected_letter_id += 1
@@ -158,10 +162,8 @@ class BubbleBobbleClient(BizHawkClient):
                         check_selected_letter_id -= 1
                         if check_selected_letter_id % 10 == 9: check_selected_letter_id += 10
                 while check_selected_letter_id >= 10: check_selected_letter_id -= 10
-                password_address = 1282 + current_letter_position
-                logger.info(f'attempting to write {check_selected_letter_id.to_bytes(1)} to {hex(password_address)}')
-                write_response = await bizhawk.write(ctx.bizhawk_ctx, [(hex(password_address), check_selected_letter_id.to_bytes(1), "RAM")])
-                logger.info(write_response)
+                password_address = password_selector_addresses[current_letter_position]
+                write_response = await bizhawk.write(ctx.bizhawk_ctx, [(password_address, [check_selected_letter_id], "RAM")])
 
 ##### LOOK UP "CommandProcessor" in existing apworlds
 
