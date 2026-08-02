@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 import json
 
 from NetUtils import ClientStatus
+from MultiServer import mark_raw
 
 import worlds._bizhawk as bizhawk
 from worlds._bizhawk.client import BizHawkClient
@@ -16,7 +17,30 @@ from .items import ITEM_NAME_TO_ID
 password_selector_addresses = [ 0x0502, 0x0503, 0x0504, 0x0505, 0x0506 ]
 
 if TYPE_CHECKING:
+    from worlds._bizhawk.context import BizHawkClientContext, BizHawkClientCommandProcessor
+
+"""
+class BubbleBobbleCommandProcessor(self: 'BizHawkClientCommandProcessor') -> Optional[GSTLAClient]:
     from worlds._bizhawk.context import BizHawkClientContext
+    ctx: "BizHawkClientContext"
+    def __init__(self, ctx: BizHawkClientContext):
+        super().__init__(ctx)
+"""
+
+@mark_raw
+def cmd_find_password(self: 'BizHawkClientCommandProcessor', checklevel: str):
+    """Locates an available valid password for a level."""
+    for x in range(len(levels.database)):
+        if checklevel == levels.database[x].lev or level == levels.database[x].sup:
+            check = x + 1
+            break
+    try:
+        passwords_list = levelcheck(ctx, check, 1)
+        for x in passwords_list:
+            passwords_list[x] = passwords_list[x].strip("- ")
+        logger.info(f'Try password {passwords_list[0], passwords_list[1], passwords_list[2], passwords_list[3], passwords_list[4]} for {level}. ')
+    except:
+        logger.info('Invalid level')
 
 class BubbleBobbleClient(BizHawkClient):
     game = "Bubble Bobble"
@@ -60,6 +84,8 @@ class BubbleBobbleClient(BizHawkClient):
             ctx.items_handling = 0b111
             ctx.want_slot_data = True
             ctx.watcher_timeout = 0.1
+            logger.info('Use \'/find_password Level ##\' or \'/find_password Super ##\' to identify a valid password for a level.')
+            ctx.command_processor.commands["find_password"] = cmd_find_password
             return True
         else: return False
 
