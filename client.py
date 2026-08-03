@@ -19,28 +19,37 @@ password_selector_addresses = [ 0x0502, 0x0503, 0x0504, 0x0505, 0x0506 ]
 if TYPE_CHECKING:
     from worlds._bizhawk.context import BizHawkClientContext, BizHawkClientCommandProcessor
 
-"""
-class BubbleBobbleCommandProcessor(self: 'BizHawkClientCommandProcessor') -> Optional[GSTLAClient]:
-    from worlds._bizhawk.context import BizHawkClientContext
-    ctx: "BizHawkClientContext"
-    def __init__(self, ctx: BizHawkClientContext):
-        super().__init__(ctx)
-"""
-
 @mark_raw
-def cmd_find_password(self: 'BizHawkClientCommandProcessor', checklevel: str):
+def cmd_find_password(self: 'BizHawkClientCommandProcessor', checklevel: str = ""):
     """Locates an available valid password for a level."""
-    for x in range(len(levels.database)):
-        if checklevel == levels.database[x].lev or level == levels.database[x].sup:
-            check = x + 1
-            break
     try:
-        passwords_list = levelcheck(ctx, check, 1)
+        for x in range(len(levels.database)):
+            if checklevel == levels.database[x].lev or checklevel == levels.database[x].sup:
+                check = x + 1
+                break
+        passwords_list = levelcheck(self.ctx.ids_received, check, 1)
+        logger.info(f'Found password {passwords_list}')
         for x in passwords_list:
             passwords_list[x] = passwords_list[x].strip("- ")
         logger.info(f'Try password {passwords_list[0], passwords_list[1], passwords_list[2], passwords_list[3], passwords_list[4]} for {level}. ')
     except:
-        logger.info('Invalid level')
+        logger.info('Invalid or unavailable level')
+
+def levelcheck(ids: list, level: int, purpose: int):
+    #purpose is 0 for checking levels for active gameplay or 1 for returning a valid password
+    #once I figure out how to differentiate super levels, this part needs adjusting
+    check = level - 1
+    passwords = levels.database[check].passwords + levels.database[check].supers
+    for password in passwords:
+        has_letter = []
+        for letter in password:
+            if ITEM_NAME_TO_ID[letter] in ids:
+                has_letter.append(letter)
+                if len(has_letter) == 5 and purpose == 0:
+                    return True
+                if len(has_letter) == 5 and purpose == 1:
+                    return has_letter
+    return False
 
 class BubbleBobbleClient(BizHawkClient):
     game = "Bubble Bobble"
@@ -54,21 +63,6 @@ class BubbleBobbleClient(BizHawkClient):
         for items in ctx.items_received:
             self.ids_received.append(int(items[0]))
 
-    def levelcheck(self, ctx: "BizHawkClientContext", level: int, purpose: int):
-        #purpose is 0 for checking levels for active gameplay or 1 for returning a valid password
-        check = level - 1
-        passwords = levels.database[check].passwords + levels.database[check].supers #once I figure out how to differentiate super levels, this part needs adjusting
-        for password in passwords:
-            has_letter = []
-            for letter in password:
-                if ITEM_NAME_TO_ID[letter] in self.ids_received:
-                    has_letter.append(letter)
-                    if len(has_letter) == 5 and purpose == 0:
-                        return True
-                    if len(has_letter) == 5 and purpose == 1:
-                        return has_letter
-        return False
-    
     async def checkstartinglives(self, ctx: "BizHawkClientContext"):
         logger.info('ran checkstartinglives')
         self.starting_lives_should_be = self.ids_received.count(2) + 3
@@ -90,7 +84,6 @@ class BubbleBobbleClient(BizHawkClient):
         else: return False
 
     async def checktraps(self, ctx: "BizHawkClientContext"):
-        logger.info('ran checktraps')
         await ctx.send_msgs([{"cmd": "Get", "keys": ["bubbobtraps_applied"]}])
 
     def on_package(self, ctx: "BizHawkClientContext", cmd: str, args: dict) -> None:
@@ -107,7 +100,7 @@ class BubbleBobbleClient(BizHawkClient):
 
         if cmd == "Retrieved":
             if "bubbobtraps_applied" in args["keys"]:
-                if args["keys"]["bubbobtraps_applied"] == null:
+                if args["keys"]["bubbobtraps_applied"] == "null":
                     self.traps_applied = 0
                 else: self.traps_applied = args["keys"]["bubbobtraps_applied"]
 
@@ -137,8 +130,8 @@ class BubbleBobbleClient(BizHawkClient):
         current_timer = int.from_bytes(read_data[11])
 
         if current_level > 0 and (p1_lives > 0 or p2_lives > 0):
-            check = self.levelcheck(ctx, current_level, 0)
-            #once I figure out how to check for boss fights, run self.levelcheck() for both 99 and B2
+            check = levelcheck(self.ids_received, current_level, 0)
+            #once I figure out how to check for boss fights, run levelcheck() for both 99 and B2
             if check and self.previous_enemy_count > 0:
                 if self.lock_2p and 8 not in self.ids_received and p2_lives > 0:
                     await bizhawk.write(ctx.bizhawk_ctx, [(0x0042, b'\x00', "RAM")])
@@ -178,18 +171,20 @@ class BubbleBobbleClient(BizHawkClient):
             for letter in selected_password_bytes:
                 self.selected_password_int.append(int.from_bytes(letter))
             check_selected_letter_id = ((current_letter_position + 1) * 10) + self.selected_password_int[current_letter_position]
-            if check_selected_letter_id not in self.ids_received:
-                if self.selected_password_int[current_letter_position] == self.previous_password_int[current_letter_position]: self.previous_password_int[current_letter_position] = -1
-                while check_selected_letter_id not in self.ids_received:
-                    if self.selected_password_int[current_letter_position] > self.previous_password_int[current_letter_position]:
-                        check_selected_letter_id += 1
-                        if check_selected_letter_id % 10 == 0: check_selected_letter_id -= 10
-                    elif self.selected_password_int[current_letter_position] < self.previous_password_int[current_letter_position]:
-                        check_selected_letter_id -= 1
-                        if check_selected_letter_id % 10 == 9: check_selected_letter_id += 10
-                while check_selected_letter_id >= 10: check_selected_letter_id -= 10
-                password_address = password_selector_addresses[current_letter_position]
-                write_response = await bizhawk.write(ctx.bizhawk_ctx, [(password_address, [check_selected_letter_id], "RAM")])
+            try:
+                if check_selected_letter_id not in self.ids_received:
+                    if self.selected_password_int[current_letter_position] == self.previous_password_int[current_letter_position]: self.previous_password_int[current_letter_position] = -1
+                    while check_selected_letter_id not in self.ids_received:
+                        if self.selected_password_int[current_letter_position] > self.previous_password_int[current_letter_position]:
+                            check_selected_letter_id += 1
+                            if check_selected_letter_id % 10 == 0: check_selected_letter_id -= 10
+                        elif self.selected_password_int[current_letter_position] < self.previous_password_int[current_letter_position]:
+                            check_selected_letter_id -= 1
+                            if check_selected_letter_id % 10 == 9: check_selected_letter_id += 10
+                    while check_selected_letter_id >= 10: check_selected_letter_id -= 10
+                    password_address = password_selector_addresses[current_letter_position]
+                    write_response = await bizhawk.write(ctx.bizhawk_ctx, [(password_address, [check_selected_letter_id], "RAM")])
+            except: self.compile_ids(ctx)
 
 ##### LOOK UP "CommandProcessor" in existing apworlds
 
