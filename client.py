@@ -22,22 +22,25 @@ if TYPE_CHECKING:
 @mark_raw
 def cmd_find_password(self: 'BizHawkClientCommandProcessor', checklevel: str = ""):
     """Locates an available valid password for a level."""
+    ctx = self.ctx
+    client = ctx.client_handler
     try:
         for x in range(len(levels.database)):
             if checklevel == levels.database[x].lev or checklevel == levels.database[x].sup:
                 check = x + 1
                 break
-        passwords_list = levelcheck(self.ctx.ids_received, check, 1)
-        logger.info(f'Found password {passwords_list}')
-        for x in passwords_list:
-            passwords_list[x] = passwords_list[x].strip("- ")
-        logger.info(f'Try password {passwords_list[0], passwords_list[1], passwords_list[2], passwords_list[3], passwords_list[4]} for {level}. ')
+        passwords_list = levelcheck(client.ids_received, check, 1)
+        newlist = []
+        for y in passwords_list:
+            newlist.append(y.strip("- "))
+        logger.info(f'Try password {" ".join(newlist)} for {checklevel}.')
     except:
         logger.info('Invalid or unavailable level')
 
 def levelcheck(ids: list, level: int, purpose: int):
     #purpose is 0 for checking levels for active gameplay or 1 for returning a valid password
     #once I figure out how to differentiate super levels, this part needs adjusting
+
     check = level - 1
     passwords = levels.database[check].passwords + levels.database[check].supers
     for password in passwords:
@@ -80,6 +83,7 @@ class BubbleBobbleClient(BizHawkClient):
             ctx.watcher_timeout = 0.1
             logger.info('Use \'/find_password Level ##\' or \'/find_password Super ##\' to identify a valid password for a level.')
             ctx.command_processor.commands["find_password"] = cmd_find_password
+            ctx.command_processor.commands["find_level"] = cmd_find_password
             return True
         else: return False
 
@@ -96,7 +100,7 @@ class BubbleBobbleClient(BizHawkClient):
             self.lock_2p = bool(slotdata['lock_two_player_mode'])
             self.require_best = bool(slotdata['require_best_ending'])
             self.slot = args["slot"]
-            if 2 in self.ids_received: checkstartinglives()
+            if 2 in self.ids_received: checkstartinglives(ctx)
 
         if cmd == "Retrieved":
             if "bubbobtraps_applied" in args["keys"]:
@@ -108,7 +112,7 @@ class BubbleBobbleClient(BizHawkClient):
             check_received = []
             for x in args['items']:
                 check_received.append(x.item)
-            if 2 in check_received: checkstartinglives()
+            if 2 in check_received: self.checkstartinglives(ctx)
 
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
 
@@ -185,8 +189,6 @@ class BubbleBobbleClient(BizHawkClient):
                     password_address = password_selector_addresses[current_letter_position]
                     write_response = await bizhawk.write(ctx.bizhawk_ctx, [(password_address, [check_selected_letter_id], "RAM")])
             except: self.compile_ids(ctx)
-
-##### LOOK UP "CommandProcessor" in existing apworlds
 
 """
 define a self.timer_traps_applied to keep track of how many timer traps have been received and used
