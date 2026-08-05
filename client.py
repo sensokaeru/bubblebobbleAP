@@ -41,6 +41,8 @@ def levelcheck(ids: list, level: int, purpose: int):
     #purpose is 0 for checking levels for active gameplay or 1 for returning a valid password
     #once I figure out how to differentiate super levels, this part needs adjusting
 
+    logger.info(f'Ran level check with IDS {ids}, on level {level}, with purpose code {purpose}')
+
     check = level - 1
     passwords = levels.database[check].passwords + levels.database[check].supers
     for password in passwords:
@@ -80,8 +82,8 @@ class BubbleBobbleClient(BizHawkClient):
             ctx.game = self.game
             ctx.items_handling = 0b111
             ctx.want_slot_data = True
-            ctx.watcher_timeout = 0.1
-            logger.info('Use \'/find_password Level ##\' or \'/find_password Super ##\' to identify a valid password for a level.')
+            ctx.watcher_timeout = 0.2
+            logger.info('Use \'/find_password Level ##\' or \'/find_level Super ##\' to identify a valid password for a level.')
             ctx.command_processor.commands["find_password"] = cmd_find_password
             ctx.command_processor.commands["find_level"] = cmd_find_password
             return True
@@ -122,10 +124,16 @@ class BubbleBobbleClient(BizHawkClient):
             self.previous_enemy_count = self.current_enemy_count
         except:
             self.previous_enemy_count = 0
+
+        try:
+            self.previous_level = self.current_level
+        except:
+            self.previous_level = 0
             
 #REMEMBER THAT THIS IS A LIST OF BYTES
         read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM")])
-        current_level = int.from_bytes(read_data[0])
+
+        self.current_level = int.from_bytes(read_data[0])
         p1_lives = int.from_bytes(read_data[1])
         p2_lives = int.from_bytes(read_data[2])
         self.current_enemy_count = int.from_bytes(read_data[3])
@@ -133,22 +141,26 @@ class BubbleBobbleClient(BizHawkClient):
         current_letter_position = int.from_bytes(read_data[10])
         current_timer = int.from_bytes(read_data[11])
 
-        if current_level > 0 and (p1_lives > 0 or p2_lives > 0):
-            check = levelcheck(self.ids_received, current_level, 0)
+        if self.current_level > 0 and (p1_lives > 0 or p2_lives > 0):
+            check = levelcheck(self.ids_received, self.current_level, 0)
             #once I figure out how to check for boss fights, run levelcheck() for both 99 and B2
-            if check and self.previous_enemy_count > 0:
+            if self.current_level == (self.previous_level + 1) & levelcheck(self.ids_received, self.previous_level, 0):
+                level_id = self.previous_level + 1000
+                #if supers are separate, and a super level was beaten, add another 1000
+                level_id = [level_id]
+                await ctx.send_msgs([{
+                    "cmd": "LocationChecks",
+                    "locations": level_id
+                }])
+            if check:
+            #above line previously checked enemy count:  and self.previous_enemy_count > 0
                 if self.lock_2p and 8 not in self.ids_received and p2_lives > 0:
                     await bizhawk.write(ctx.bizhawk_ctx, [(0x0042, b'\x00', "RAM")])
 
-                if self.current_enemy_count == 0:
-                    level_id = current_level + 1000
-                    #if supers are separate, and a super level was beaten, add another 1000
-                    level_id = [level_id]
-                    await ctx.send_msgs([{
-                        "cmd": "LocationChecks",
-                        "locations": level_id
-                    }])
+#this part checks for level completion
 
+
+#this part checks for traps
                 else:
                     try:
                         if current_timer >= 2 & self.traps_applied < self.traps_received:
@@ -163,8 +175,10 @@ class BubbleBobbleClient(BizHawkClient):
                             }])
                     except: await self.checktraps(ctx)
 
-            elif not check and self.current_enemy_count > 0: await bizhawk.write(ctx.bizhawk_ctx, [(0x002E, b'\x00', "RAM"), (0x0042, b'\x00', "RAM"), (0x0401, b'\x00', "RAM")])
+#this part kills you if you're in a level that you're not supposed to be in.  This also previously compared enemy count, which might not be necessary : and self.current_enemy_count > 0
+            elif not check: await bizhawk.write(ctx.bizhawk_ctx, [(0x002E, b'\x00', "RAM"), (0x0042, b'\x00', "RAM"), (0x0401, b'\x00', "RAM")])
 
+#this part changes the current selected letter if you have a letter selected that you're not allowed to use yet
         elif current_menu_selection == 4:
             try:
                 self.previous_password_int = self.selected_password_int
