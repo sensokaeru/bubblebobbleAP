@@ -75,7 +75,7 @@ class BubbleBobbleClient(BizHawkClient):
             ctx.game = self.game
             ctx.items_handling = 0b111
             ctx.want_slot_data = True
-            ctx.watcher_timeout = 0.15
+            ctx.watcher_timeout = 0.1
             logger.info('-')
             logger.info('Use \'/find_level Level ##\' or \'/find_level Super ##\' to identify a valid password for a level.')
             logger.info('-')
@@ -181,7 +181,7 @@ class BubbleBobbleClient(BizHawkClient):
             elif not check: await bizhawk.write(ctx.bizhawk_ctx, [(0x002E, b'\x00', "RAM"), (0x0042, b'\x00', "RAM"), (0x0401, b'\x00', "RAM")])
 
 #this part changes the current selected letter if you have a letter selected that you're not allowed to use yet
-        elif current_menu_selection == 4:
+        elif current_menu_selection == 4 and current_letter_position < 5:
             try:
                 self.previous_password_int = self.selected_password_int
             except:

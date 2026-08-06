@@ -249,6 +249,10 @@ def create_all_items(world: BubbleBobbleWorld) -> None:
         itempool.append(world.create_item("Super Bubble Bobble"))
     if world.options.lock_two_player_mode:
         itempool.append(world.create_item("Two Player Mode"))
+    if world.options.increase_starting_lives_count > 0:
+        for lives in range(world.options.increase_starting_lives_count):
+            itempool.append(world.create_item("Increase Starting Lives"))
+
 
     print("separate supers", world.options.separate_super_bubble_bobble_levels)
     print("lock supers", world.options.lock_super_bubble_bobble_levels)
