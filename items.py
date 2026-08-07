@@ -253,12 +253,6 @@ def create_all_items(world: BubbleBobbleWorld) -> None:
         for lives in range(world.options.increase_starting_lives_count):
             itempool.append(world.create_item("Increase Starting Lives"))
 
-
-    print("separate supers", world.options.separate_super_bubble_bobble_levels)
-    print("lock supers", world.options.lock_super_bubble_bobble_levels)
-    print("lock 2P", world.options.lock_two_player_mode)
-    print("best ending", world.options.require_best_ending)
-
     number_of_items = len(itempool)
     number_of_unfilled_locations = len(world.multiworld.get_unfilled_locations(world.player))
     needed_number_of_filler_items = number_of_unfilled_locations - number_of_items

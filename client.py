@@ -24,13 +24,19 @@ def cmd_find_password(self: 'BizHawkClientCommandProcessor', checklevel: str = "
     """Locates an available valid password for a level."""
     ctx = self.ctx
     client = ctx.client_handler
+    separate = client.separate_supers | client.lock_supers
     try:
         for x in range(len(levels.database)):
             text = checklevel.title()
-            if text == levels.database[x].lev or text == levels.database[x].sup:
+            if text == levels.database[x].lev:
                 check = x + 1
+                superlevel = False
                 break
-        passwords_list = levelcheck(client.ids_received, check, 1)
+            if text == levels.database[x].sup:
+                check = x + 1
+                superlevel = True
+                break
+        passwords_list = levelcheck(client.ids_received, check, 1, superlevel, separate)
         newlist = []
         for y in passwords_list:
             newlist.append(y.strip("- "))
@@ -38,12 +44,15 @@ def cmd_find_password(self: 'BizHawkClientCommandProcessor', checklevel: str = "
     except:
         logger.info('Invalid or unavailable level')
 
-def levelcheck(ids: list, level: int, purpose: int):
+def levelcheck(ids: list, level: int, purpose: int, superlevel: bool, separate: bool):
     #purpose is 0 for checking levels for active gameplay or 1 for returning a valid password
     #once I figure out how to differentiate super levels, this part needs adjusting
 
     check = level - 1
-    passwords = levels.database[check].passwords + levels.database[check].supers
+    if separate:
+        if superlevel: passwords = levels.database[check].supers
+        else: passwords = levels.database[check].passwords
+    else: passwords = levels.database[check].supers + levels.database[check].passwords
     for password in passwords:
         has_letter = []
         for letter in password:
@@ -85,8 +94,7 @@ class BubbleBobbleClient(BizHawkClient):
         else: return False
 
     def on_package(self, ctx: "BizHawkClientContext", cmd: str, args: dict) -> None:
-        self.compile_ids(ctx)
-        self.traps_received = self.ids_received.count(1)
+        
         if cmd == "Connected":
             slotdata = args['slot_data']
             self.separate_supers = bool(slotdata['separate_super_bubble_bobble_levels'])
@@ -103,6 +111,7 @@ class BubbleBobbleClient(BizHawkClient):
 
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
         self.compile_ids(ctx)
+        self.traps_received = self.ids_received.count(1)
 
         try:
             self.previous_enemy_count = self.current_enemy_count
@@ -114,14 +123,10 @@ class BubbleBobbleClient(BizHawkClient):
         except:
             self.previous_level = 0
             
-#REMEMBER THAT THIS IS A LIST OF BYTES
-        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0xCA38, 1, "System Bus")])
+        #REMEMBER THAT THIS IS A LIST OF BYTES
+        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0xCA38, 1, "System Bus"), (0x831F, 1, "System Bus"), (0x046C, 1, "RAM"), (0x049D, 1, "RAM")])
 
         self.current_level = int.from_bytes(read_data[0])
-        if self.current_level == 0: self.previous_level = 0
-        level_difference = self.current_level - self.previous_level
-        if level_difference < 0: self.current_level = self.previous_level
-
         p1_lives = int.from_bytes(read_data[1])
         p2_lives = int.from_bytes(read_data[2])
         self.current_enemy_count = int.from_bytes(read_data[3])
@@ -130,17 +135,36 @@ class BubbleBobbleClient(BizHawkClient):
         current_timer = int.from_bytes(read_data[11])
         game_state = int.from_bytes(read_data[13])
 
+        self.super_check_1 = int.from_bytes(read_data[16])
+        self.super_check_2 = int.from_bytes(read_data[17])
+        if self.super_check_1 == self.super_check_2 == 0: self.super_level = False
+        elif self.super_check_1 == self.super_check_2 == 1: self.super_level = True
+        else:
+            logger.info(f'If you see this message, super level check failed, keep track of what you were doing at the time and report this: super 1 = {self.super_check_1} super 1 = {self.super_check_2}')
+            try:
+                logger.info(f'and super level shows {self.super_level}')
+            except:
+                logger.info('and super level bool not set')
+
+        if self.current_level == 0:
+            if p1_lives == 0 and p2_lives == 0: self.previous_level = 0
+            else: self.current_level = self.previous_level
+        level_difference = self.current_level - self.previous_level
+        if level_difference < 0: self.current_level = self.previous_level
+
         self.current_starting_lives = int.from_bytes(read_data[14])
+        self.current_starting_lives_boss = int.from_bytes(read_data[15])
         idsforthis = self.ids_received
         self.starting_lives_should_be = idsforthis.count(2) + 3
-        if self.starting_lives_should_be != self.current_starting_lives:
-            await bizhawk.write(ctx.bizhawk_ctx, [(0xCA38, self.starting_lives_should_be.to_bytes(1), "System Bus")])
+        if self.starting_lives_should_be != self.current_starting_lives or self.starting_lives_should_be != self.current_starting_lives_boss:
+            await bizhawk.write(ctx.bizhawk_ctx, [(0xCA38, self.starting_lives_should_be.to_bytes(1), "System Bus"), (0x831F, self.starting_lives_should_be.to_bytes(1), "System Bus")])
 
         ####read_data[12] is going to be player state, watch it to implement death links, gets set to 128 or b'\x80' for death state
 
-#trying again to check for level completion hope it fucking works this time
+        #this part checks for level completion and sends a check most of the time
         if game_state == 128:
-            checkprevious = levelcheck(self.ids_received, self.previous_level, 0)
+            separate = client.separate_supers | client.lock_supers
+            checkprevious = levelcheck(self.ids_received, self.previous_level, 0, self.super_level, separate)
             level_difference = self.current_level - self.previous_level
             if checkprevious and level_difference == 1:
                 level_id = self.previous_level + 1000
@@ -155,14 +179,19 @@ class BubbleBobbleClient(BizHawkClient):
             self.current_level = 0
 
         if self.current_level > 0 and (p1_lives > 0 or p2_lives > 0):
-            check = levelcheck(self.ids_received, self.current_level, 0)
+            separate = client.separate_supers | client.lock_supers
+            check = levelcheck(self.ids_received, self.current_level, 0, self.super_level, separate)
             #once I figure out how to check for boss fights, run levelcheck() for both 99 and B2
 
             if check:
-            #above line previously checked enemy count:  and self.previous_enemy_count > 0
+
+                #this part kills player 2 if 2 player mode is supposed to be locked
                 if self.lock_2p and 8 not in self.ids_received and p2_lives > 0: await bizhawk.write(ctx.bizhawk_ctx, [(0x0042, b'\x00', "RAM")])
 
-#this part checks for traps
+                #this part hopefully kills you if you're in a super level and not supposed to be
+                if self.super_level and self.lock_supers and 9 not in self.ids_received: await bizhawk.write(ctx.bizhawk_ctx, [(0x002E, b'\x00', "RAM"), (0x0042, b'\x00', "RAM"), (0x0401, b'\x00', "RAM")])
+
+                #this part checks for traps
                 elif self.current_enemy_count > 0:
                     try:
                         if current_timer >= 2 and self.traps_applied < self.traps_received:
@@ -177,10 +206,10 @@ class BubbleBobbleClient(BizHawkClient):
                             }])
                     except: await ctx.send_msgs([{"cmd": "Get", "keys": ["bubbobtraps_applied"]}])
 
-#this part kills you if you're in a level that you're not supposed to be in.  This also previously compared enemy count, which might not be necessary : and self.current_enemy_count > 0
+            #this part kills you if you're in a level that you're not supposed to be in
             elif not check: await bizhawk.write(ctx.bizhawk_ctx, [(0x002E, b'\x00', "RAM"), (0x0042, b'\x00', "RAM"), (0x0401, b'\x00', "RAM")])
 
-#this part changes the current selected letter if you have a letter selected that you're not allowed to use yet
+        #this part changes the current selected letter if you have a letter selected that you're not allowed to use yet
         elif current_menu_selection == 4 and current_letter_position < 5:
             try:
                 self.previous_password_int = self.selected_password_int
@@ -207,26 +236,3 @@ class BubbleBobbleClient(BizHawkClient):
                     password_address = password_selector_addresses[current_letter_position]
                     write_response = await bizhawk.write(ctx.bizhawk_ctx, [(password_address, [check_selected_letter_id], "RAM")])
             except: self.compile_ids(ctx)
-
-"""
-(check)define a self.timer_traps_applied to keep track of how many timer traps have been received and used
-(check)network protocol document explains how to save this on the server if needed
-
-start by reading all the stuff needed to check everything below all at once
-if the player is on the title screen: just wait
-(check)if the player is on the main menu: monitor what the player attempts to input as a password and change it if they use a letter they're not supposed to use
-if the player is in game:
-    if the player is in a regular level:
-        (check)first check if they are allowed to be in that level at all and kill both player one and player two if they're not
-            including if it's a Super level, depending on whether supers are locked
-        (check)second check if two player mode is turned on and force player two's lives to 0 if it's not
-        third disable/enable skills/elements based on collected items
-        (check)fourth watch for level completion and send a check when the level is completed
-        last check if any timer traps have been received and apply them if applicable
-            compare number of traps received to number of traps applied
-            verify that monster count and timer are above 0
-    if the player is in the boss fight:
-        check if the player is allowed to go to level 99 or B2 and kill them if they're not
-        monitor for completion
-        check if they're getting the good ending or a bad ending and send completion accordingly
-"""
