@@ -168,6 +168,7 @@ class BubbleBobbleClient(BizHawkClient):
             level_difference = self.current_level - self.previous_level
             if checkprevious and level_difference == 1:
                 level_id = self.previous_level + 1000
+                if self.separate_supers and self.super_level: level_id += 1000
                 level_id = [level_id]
                 await ctx.send_msgs([{
                     "cmd": "LocationChecks",
