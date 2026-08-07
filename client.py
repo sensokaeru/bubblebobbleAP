@@ -163,7 +163,7 @@ class BubbleBobbleClient(BizHawkClient):
 
         #this part checks for level completion and sends a check most of the time
         if game_state == 128:
-            separate = client.separate_supers | client.lock_supers
+            separate = self.separate_supers | self.lock_supers
             checkprevious = levelcheck(self.ids_received, self.previous_level, 0, self.super_level, separate)
             level_difference = self.current_level - self.previous_level
             if checkprevious and level_difference == 1:
@@ -179,7 +179,7 @@ class BubbleBobbleClient(BizHawkClient):
             self.current_level = 0
 
         if self.current_level > 0 and (p1_lives > 0 or p2_lives > 0):
-            separate = client.separate_supers | client.lock_supers
+            separate = self.separate_supers | self.lock_supers
             check = levelcheck(self.ids_received, self.current_level, 0, self.super_level, separate)
             #once I figure out how to check for boss fights, run levelcheck() for both 99 and B2
 
