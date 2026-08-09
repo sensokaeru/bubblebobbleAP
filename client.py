@@ -200,7 +200,11 @@ class BubbleBobbleClient(BizHawkClient):
 
         if self.current_level > 0 and (p1_lives > 0 or p2_lives > 0):
             separate = self.separate_supers | self.lock_supers
-            check = levelcheck(self.ids_received, self.current_level, 0, self.super_level, separate)
+            if self.boss_fight:
+                check99 = levelcheck(self.ids_received, 99, 0, self.super_level, separate)
+                checkB2 = levelcheck(self.ids_received, 112, 0, self.super_level, separate)
+                check = check99 | checkB2
+            else: check = levelcheck(self.ids_received, self.current_level, 0, self.super_level, separate)
             #once I figure out how to check for boss fights, run levelcheck() for both 99 and B2
 
             if check:
@@ -212,7 +216,7 @@ class BubbleBobbleClient(BizHawkClient):
                 if self.super_level and self.lock_supers and 9 not in self.ids_received: await bizhawk.write(ctx.bizhawk_ctx, [(0x002E, b'\x00', "RAM"), (0x0042, b'\x00', "RAM"), (0x0401, b'\x00', "RAM")])
 
                 #this part checks for traps
-                elif self.current_enemy_count > 0:
+                elif self.current_enemy_count > 0 and not self.boss_fight:
                     try:
                         if current_timer >= 2 and self.traps_applied < self.traps_received:
                             await bizhawk.write(ctx.bizhawk_ctx, [(0x040D, b'\x00', "RAM")])
