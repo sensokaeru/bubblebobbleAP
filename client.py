@@ -124,7 +124,7 @@ class BubbleBobbleClient(BizHawkClient):
             self.previous_level = 0
             
         #REMEMBER THAT THIS IS A LIST OF BYTES
-        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0xCA38, 1, "System Bus"), (0x831F, 1, "System Bus"), (0x046C, 1, "RAM"), (0x049D, 1, "RAM")])
+        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0xCA38, 1, "System Bus"), (0x1431F, 1, "PRG ROM"), (0x046C, 1, "RAM"), (0x049D, 1, "RAM"), (0x0327, 1, "RAM"), (0x032C, 1, "RAM"), (0x006F, 1, "RAM")])
 
         self.current_level = int.from_bytes(read_data[0])
         p1_lives = int.from_bytes(read_data[1])
@@ -135,6 +135,7 @@ class BubbleBobbleClient(BizHawkClient):
         current_timer = int.from_bytes(read_data[11])
         game_state = int.from_bytes(read_data[13])
 
+        #this part hopefully identifies super levels
         self.super_check_1 = int.from_bytes(read_data[16])
         self.super_check_2 = int.from_bytes(read_data[17])
         if self.super_check_1 == self.super_check_2 == 0: self.super_level = False
@@ -146,34 +147,52 @@ class BubbleBobbleClient(BizHawkClient):
             except:
                 logger.info('and super level bool not set')
 
+        #this hopefully checks for boss fights
+        self.boss_check_1 = int.from_bytes(read_data[18])
+        self.boss_check_2 = int.from_bytes(read_data[19])
+        self.boss_hp = int.from_bytes(read_data[20])
+        if self.boss_check_1 == 102 and self.boss_check_2 == 4 and (self.current_level == 99 or self.current_level >= 112): self.boss_fight == True
+        else: self.boss_fight == False
+
         if self.current_level == 0:
             if p1_lives == 0 and p2_lives == 0: self.previous_level = 0
             else: self.current_level = self.previous_level
         level_difference = self.current_level - self.previous_level
         if level_difference < 0: self.current_level = self.previous_level
 
+        #this checks and corrects starting lives
         self.current_starting_lives = int.from_bytes(read_data[14])
         self.current_starting_lives_boss = int.from_bytes(read_data[15])
         idsforthis = self.ids_received
         self.starting_lives_should_be = idsforthis.count(2) + 3
         if self.starting_lives_should_be != self.current_starting_lives or self.starting_lives_should_be != self.current_starting_lives_boss:
-            await bizhawk.write(ctx.bizhawk_ctx, [(0xCA38, self.starting_lives_should_be.to_bytes(1), "System Bus"), (0x831F, self.starting_lives_should_be.to_bytes(1), "System Bus")])
+            await bizhawk.write(ctx.bizhawk_ctx, [(0xCA38, self.starting_lives_should_be.to_bytes(1), "System Bus"), (0x1431F, self.starting_lives_should_be.to_bytes(1), "PRG ROM")])
 
         ####read_data[12] is going to be player state, watch it to implement death links, gets set to 128 or b'\x80' for death state
 
-        #this part checks for level completion and sends a check most of the time
+        #this part checks for level completion and sends a check most of the time, and hopefully checks for goal
         if game_state == 128:
-            separate = self.separate_supers | self.lock_supers
-            checkprevious = levelcheck(self.ids_received, self.previous_level, 0, self.super_level, separate)
-            level_difference = self.current_level - self.previous_level
-            if checkprevious and level_difference == 1:
-                level_id = self.previous_level + 1000
-                if self.separate_supers and self.super_level: level_id += 1000
-                level_id = [level_id]
-                await ctx.send_msgs([{
-                    "cmd": "LocationChecks",
-                    "locations": level_id
-                }])
+            if self.boss_fight:
+                separate = self.separate_supers | self.lock_supers
+                check99 = levelcheck(self.ids_received, 99, 0, self.super_level, separate)
+                checkB2 = levelcheck(self.ids_received, 112, 0, self.super_level, separate)
+                if (check99 or checkB2) and self.boss_hp == 0:
+                    await ctx.send_msgs([{
+                        "cmd": "StatusUpdate",
+                        "status": ClientStatus.CLIENT_GOAL
+                    }])
+            else:
+                separate = self.separate_supers | self.lock_supers
+                checkprevious = levelcheck(self.ids_received, self.previous_level, 0, self.super_level, separate)
+                level_difference = self.current_level - self.previous_level
+                if checkprevious and level_difference == 1:
+                    level_id = self.previous_level + 1000
+                    if self.separate_supers and self.super_level: level_id += 1000
+                    level_id = [level_id]
+                    await ctx.send_msgs([{
+                        "cmd": "LocationChecks",
+                        "locations": level_id
+                    }])
 
         elif game_state == 255:
             self.previous_level = 0

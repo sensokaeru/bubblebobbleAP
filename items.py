@@ -237,7 +237,7 @@ def create_all_items(world: BubbleBobbleWorld) -> None:
             if x not in starting_items: starting_items.append(x)
 
         if len(starting_items) > 10 and not world.options.lock_super_bubble_bobble_levels: return generatestartinglevels()
-        elif len(starting_items) < 13 and world.options.lock_super_bubble_bobble_levels: return generatestartinglevels()
+        elif (len(starting_items) < 11 or len(starting_items) > 13) and world.options.lock_super_bubble_bobble_levels: return generatestartinglevels()
         
         else: return starting_items
 
