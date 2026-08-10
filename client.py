@@ -138,21 +138,21 @@ class BubbleBobbleClient(BizHawkClient):
         #this part hopefully identifies super levels
         self.super_check_1 = int.from_bytes(read_data[16])
         self.super_check_2 = int.from_bytes(read_data[17])
-        if self.super_check_1 == self.super_check_2 == 0: self.super_level = False
-        elif self.super_check_1 == self.super_check_2 == 1: self.super_level = True
-        else:
-            logger.info(f'If you see this message, super level check failed, keep track of what you were doing at the time and report this: super 1 = {self.super_check_1} super 1 = {self.super_check_2}')
-            try:
-                logger.info(f'and super level shows {self.super_level}')
-            except:
-                logger.info('and super level bool not set')
+        if self.super_check_1 == self.super_check_2 == 1: self.super_level = True
+        else: self.super_level = False
+        #else:
+            #logger.info(f'If you see this message, super level check failed, keep track of what you were doing at the time and report this: super 1 = {self.super_check_1} super 2 = {self.super_check_2}')
+            #try:
+                #logger.info(f'and super level shows {self.super_level}')
+            #except:
+                #logger.info('and super level bool not set')
 
         #this hopefully checks for boss fights
         self.boss_check_1 = int.from_bytes(read_data[18])
         self.boss_check_2 = int.from_bytes(read_data[19])
         self.boss_hp = int.from_bytes(read_data[20])
-        if self.boss_check_1 == 102 and self.boss_check_2 == 4 and (self.current_level == 99 or self.current_level >= 112): self.boss_fight == True
-        else: self.boss_fight == False
+        if self.boss_check_1 == 102 and self.boss_check_2 == 4 and (self.current_level == 99 or self.current_level >= 112): self.boss_fight = True
+        else: self.boss_fight = False
 
         if self.current_level == 0:
             if p1_lives == 0 and p2_lives == 0: self.previous_level = 0
