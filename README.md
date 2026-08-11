@@ -28,6 +28,7 @@
 ## Notes about the password locking system
 
 - The vanilla game gives you exactly one password per level, but in actuality, every level has several passwords that work.  Every password that works in the AP will also work in the vanilla game.
+- Use the /find_level command in the client to find a valid password that you can currently use.
 - If you enter a level and immediately game over, that means you don't have a password you can use for that level right now.
 
 ## Special thanks
