@@ -137,15 +137,8 @@ class BubbleBobbleClient(BizHawkClient):
 
         #this part hopefully identifies super levels
         self.super_check_1 = int.from_bytes(read_data[16])
-        self.super_check_2 = int.from_bytes(read_data[17])
-        if self.super_check_1 == self.super_check_2 == 1: self.super_level = True
+        if self.super_check_1 >= 1: self.super_level = True
         else: self.super_level = False
-        #else:
-            #logger.info(f'If you see this message, super level check failed, keep track of what you were doing at the time and report this: super 1 = {self.super_check_1} super 2 = {self.super_check_2}')
-            #try:
-                #logger.info(f'and super level shows {self.super_level}')
-            #except:
-                #logger.info('and super level bool not set')
 
         #this hopefully checks for boss fights
         self.boss_check_1 = int.from_bytes(read_data[18])
