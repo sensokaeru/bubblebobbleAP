@@ -35,4 +35,5 @@
 
 - Thanks to Ehseezed and Rawsome for helping me get the original manual Bubble Bobble apworld working, which inspired this project.
 - Big thanks to HappyHappyism for babying me through the very little NES ASM that I needed to understand to piece together part of this.
+- To NewSoupVi for the very educational comments in the APQuest code.
 - And thanks to the unbelievably patient denizens of #ap-world-dev for tolerating the extreme depths of my ignorance.
