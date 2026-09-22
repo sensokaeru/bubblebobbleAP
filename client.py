@@ -66,6 +66,7 @@ def levelcheck(ids: list, level: int, purpose: int, superlevel: bool, separate: 
 class BubbleBobbleClient(BizHawkClient):
     game = "Bubble Bobble"
     system = "NES"
+    #patch_suffix = ".apbubbob"
 
     def __init__(self):
         super().__init__()
@@ -76,6 +77,7 @@ class BubbleBobbleClient(BizHawkClient):
             self.ids_received.append(int(items[0]))
 
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
+        #this will have to be largely redone when patching
         rom_hash = await bizhawk.get_hash(ctx.bizhawk_ctx)
         rom_system = await bizhawk.get_system(ctx.bizhawk_ctx)
         if rom_hash == "B220CB06A7E23C55A982FD75B32554D0BF511B7B" and rom_system == "NES":
@@ -116,6 +118,7 @@ class BubbleBobbleClient(BizHawkClient):
         self.writes = []
         self.kill_p1 = False
         self.kill_p2 = False
+        self.reset_level = False
 
         try:
             self.previous_enemy_count = self.current_enemy_count
@@ -128,7 +131,7 @@ class BubbleBobbleClient(BizHawkClient):
             self.previous_level = 0
             
         #REMEMBER THAT THIS IS A LIST OF BYTES
-        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0xCA38, 1, "System Bus"), (0x1431F, 1, "PRG ROM"), (0x046C, 1, "RAM"), (0x049D, 1, "RAM"), (0x0327, 1, "RAM"), (0x032C, 1, "RAM"), (0x006F, 1, "RAM"), (0x0400, 1, "RAM")])
+        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0xCA38, 1, "System Bus"), (0x1431F, 1, "PRG ROM"), (0x046C, 1, "RAM"), (0x0327, 1, "RAM"), (0x032C, 1, "RAM"), (0x006F, 1, "RAM"), (0x0400, 1, "RAM"), (0x04CE, 1, "RAM")])
 
         self.current_level = int.from_bytes(read_data[0])
         p1_lives = int.from_bytes(read_data[1])
@@ -145,13 +148,13 @@ class BubbleBobbleClient(BizHawkClient):
         else: self.super_level = False
 
         #this hopefully checks for boss fights
-        self.boss_check_1 = int.from_bytes(read_data[18])
-        self.boss_check_2 = int.from_bytes(read_data[19])
-        self.boss_hp = int.from_bytes(read_data[20])
+        self.boss_check_1 = int.from_bytes(read_data[17])
+        self.boss_check_2 = int.from_bytes(read_data[18])
+        self.boss_hp = int.from_bytes(read_data[19])
         if self.boss_check_1 == 102 and self.boss_check_2 == 4 and (self.current_level == 99 or self.current_level >= 112): self.boss_fight = True
         else: self.boss_fight = False
         
-        self.transition = int.from_bytes(read_data[21])
+        self.transition = int.from_bytes(read_data[20])
         #this is set to 2 for level transitions
 
         if self.current_level == 0:
@@ -210,20 +213,17 @@ class BubbleBobbleClient(BizHawkClient):
 
                 #this part kills player 2 if 2 player mode is supposed to be locked
                 if self.lock_2p and 8 not in self.ids_received and p2_lives > 0: self.kill_p2 = True
-                    #await bizhawk.write(ctx.bizhawk_ctx, [(0x0042, b'\x00', "RAM")])
 
                 #this part hopefully kills you if you're in a super level and not supposed to be
                 if self.super_level and self.lock_supers and 9 not in self.ids_received: 
                     self.kill_p1 = True
                     self.kill_p2 = True
                     self.reset_level = True
-                    #await bizhawk.write(ctx.bizhawk_ctx, [(0x002E, b'\x00', "RAM"), (0x0042, b'\x00', "RAM"), (0x0401, b'\x00', "RAM")])
 
                 #this part checks for traps
                 elif self.current_enemy_count > 0 and not self.boss_fight:
                     try:
                         if current_timer >= 2 and self.traps_applied < self.traps_received:
-                            #await bizhawk.write(ctx.bizhawk_ctx, [(0x040D, b'\x00', "RAM")])
                             self.writes.append((0x040D, b'\x00', "RAM"))
                             self.traps_applied += 1
                             await ctx.send_msgs([{
@@ -240,7 +240,6 @@ class BubbleBobbleClient(BizHawkClient):
                 self.kill_p1 = True
                 self.kill_p2 = True
                 self.reset_level = True
-                #await bizhawk.write(ctx.bizhawk_ctx, [(0x002E, b'\x00', "RAM"), (0x0042, b'\x00', "RAM"), (0x0401, b'\x00', "RAM")])
 
         #this part changes the current selected letter if you have a letter selected that you're not allowed to use yet
         elif current_menu_selection == 4 and current_letter_position < 5:
@@ -268,8 +267,16 @@ class BubbleBobbleClient(BizHawkClient):
                     while check_selected_letter_id >= 10: check_selected_letter_id -= 10
                     password_address = password_selector_addresses[current_letter_position]
                     self.writes.append((password_address, [check_selected_letter_id], "RAM"))
-                    #write_response = await bizhawk.write(ctx.bizhawk_ctx, [(password_address, [check_selected_letter_id], "RAM")])
             except: self.compile_ids(ctx)
+
+        self.current_elements = int.from_bytes(read_data[21])
+        self.elements_unlocked = 17
+        if 6 in self.ids_received: self.elements_unlocked += 34
+        if 4 in self.ids_received: self.elements_unlocked += 68
+        if 6 in self.ids_received: self.elements_unlocked += 136
+        self.current_elements &= self.elements_unlocked
+        self.writes.append((0x04CE, self.current_elements.to_bytes(1), "RAM"))
+        
         if self.kill_p1: self.writes.append((0x002E, b'\x00', "RAM"))
         if self.kill_p2: self.writes.append((0x0042, b'\x00', "RAM"))
         if self.reset_level: self.writes.append((0x0401, b'\x00', "RAM"))
