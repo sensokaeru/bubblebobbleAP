@@ -131,7 +131,7 @@ class BubbleBobbleClient(BizHawkClient):
             self.previous_level = 0
             
         #REMEMBER THAT THIS IS A LIST OF BYTES
-        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0xCA38, 1, "System Bus"), (0x1431F, 1, "PRG ROM"), (0x046C, 1, "RAM"), (0x0327, 1, "RAM"), (0x032C, 1, "RAM"), (0x006F, 1, "RAM"), (0x0400, 1, "RAM"), (0x04CE, 1, "RAM")])
+        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0xCA38, 1, "System Bus"), (0x1431F, 1, "PRG ROM"), (0x046C, 1, "RAM"), (0x0327, 1, "RAM"), (0x032C, 1, "RAM"), (0x006F, 1, "RAM"), (0x0400, 1, "RAM"), (0x04CE, 1, "RAM"), (0x0038, 6, "RAM"), (0x01D3, 1, "RAM")])
 
         self.current_level = int.from_bytes(read_data[0])
         p1_lives = int.from_bytes(read_data[1])
@@ -141,6 +141,8 @@ class BubbleBobbleClient(BizHawkClient):
         current_letter_position = int.from_bytes(read_data[10])
         current_timer = int.from_bytes(read_data[11])
         game_state = int.from_bytes(read_data[13])
+        score_check = int.from_bytes(read_data[22:28])
+        last_level_beaten = int.from_bytes(read_data[28])
 
         #this part hopefully identifies super levels
         self.super_check_1 = int.from_bytes(read_data[16])
@@ -174,28 +176,42 @@ class BubbleBobbleClient(BizHawkClient):
         ####read_data[12] is going to be player state, watch it to implement death links, gets set to 128 or b'\x80' for death state
 
         #this part checks for level completion and sends a check most of the time, and hopefully checks for goal
-        if game_state == 128:
-            if self.boss_fight:
-                separate = self.separate_supers | self.lock_supers
-                check99 = levelcheck(self.ids_received, 99, 0, self.super_level, separate)
-                checkB2 = levelcheck(self.ids_received, 112, 0, self.super_level, separate)
-                if (check99 or checkB2) and self.boss_hp == 0:
-                    await ctx.send_msgs([{
-                        "cmd": "StatusUpdate",
-                        "status": ClientStatus.CLIENT_GOAL
-                    }])
-            else:
-                separate = self.separate_supers | self.lock_supers
-                checkprevious = levelcheck(self.ids_received, self.previous_level, 0, self.super_level, separate)
-                level_difference = self.current_level - self.previous_level
-                if checkprevious and level_difference == 1:
-                    level_id = self.previous_level + 1000
-                    if self.separate_supers and self.super_level: level_id += 1000
-                    level_id = [level_id]
+        #if this part works, delete the next commented out block of garbarge
+        if last_level_beaten > 0 and score_check > 0:
+            last_level_beaten += 1000
+            if self.separate_supers and self.super_level: last_level_beaten += 1000
+            try:
+                if last_level_beaten not in self.locations_sent:
+                    last_level_beaten = [last_level_beaten]
                     await ctx.send_msgs([{
                         "cmd": "LocationChecks",
-                        "locations": level_id
+                        "locations": last_level_beaten
                     }])
+                    self.locations_sent.append(last_level_beaten)
+            except: self.locations_sent = []
+
+#        if game_state == 128:
+#            if self.boss_fight:
+#                separate = self.separate_supers | self.lock_supers
+#                check99 = levelcheck(self.ids_received, 99, 0, self.super_level, separate)
+#                checkB2 = levelcheck(self.ids_received, 112, 0, self.super_level, separate)
+#                if (check99 or checkB2) and self.boss_hp == 0:
+#                    await ctx.send_msgs([{
+#                        "cmd": "StatusUpdate",
+#                        "status": ClientStatus.CLIENT_GOAL
+#                    }])
+#            else:
+#                separate = self.separate_supers | self.lock_supers
+#                checkprevious = levelcheck(self.ids_received, self.previous_level, 0, self.super_level, separate)
+#                level_difference = self.current_level - self.previous_level
+#                if checkprevious and level_difference == 1:
+#                    level_id = self.previous_level + 1000
+#                    if self.separate_supers and self.super_level: level_id += 1000
+#                    level_id = [level_id]
+#                    await ctx.send_msgs([{
+#                        "cmd": "LocationChecks",
+#                        "locations": level_id
+#                    }])
 
         elif game_state == 255:
             self.previous_level = 0
@@ -273,9 +289,11 @@ class BubbleBobbleClient(BizHawkClient):
         self.elements_unlocked = 17
         if 6 in self.ids_received: self.elements_unlocked += 34
         if 4 in self.ids_received: self.elements_unlocked += 68
-        if 6 in self.ids_received: self.elements_unlocked += 136
+        if 5 in self.ids_received: self.elements_unlocked += 136
         self.current_elements &= self.elements_unlocked
         self.writes.append((0x04CE, self.current_elements.to_bytes(1), "RAM"))
+
+        if 3 in self.ids_received: self.writes.append((0x01D1, b'\x01', "RAM"))
         
         if self.kill_p1: self.writes.append((0x002E, b'\x00', "RAM"))
         if self.kill_p2: self.writes.append((0x0042, b'\x00', "RAM"))
