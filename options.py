@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Options import Choice, OptionGroup, PerGameCommonOptions, Range, Toggle
+from Options import OptionGroup, PerGameCommonOptions, Range, Toggle
 
 class SuperLevels(Toggle):
     """
@@ -56,6 +56,29 @@ class TimerTrapChance(Range):
     range_end = 100
     default = 20
 
+class DeathLink(Toggle):
+    """
+    When you die, everyone who enabled death link dies.  Of course, the reverse is true, too.
+    """
+    display_name = "Death Link"
+
+class DeathLinkTrigger(Toggle):
+    """
+    Determines what triggers a death link.  Turn this ON to trigger a death link every time you lose a life.
+    Turn this OFF to trigger a death link only on game over.
+    This is ignored if Death Link is off.
+    """
+    display_name = "Death Link Every Death"
+
+class DeathLinkResult(Toggle):
+    """
+    Determines the result of a death link.  Turn this ON to game over every time a death link is received.
+    Turn this OFF to only lose one life every time a death link is received.
+    This is ignored if Death Link is off.
+    """
+    display_name = "Death Link Causes Game Over"
+
+
 @dataclass
 class BubbleBobbleOptions(PerGameCommonOptions):
     separate_super_bubble_bobble_levels: SuperLevels
@@ -64,6 +87,9 @@ class BubbleBobbleOptions(PerGameCommonOptions):
     require_best_ending: EndingReq
     increase_starting_lives_count: IncreaseLivesCount
     timer_trap_chance: TimerTrapChance
+    deathlink: DeathLink
+    deathlinktrigger: DeathLinkTrigger
+    deathlinkresult: DeathLinkResult
 
 option_groups = [
     OptionGroup(
@@ -71,8 +97,8 @@ option_groups = [
         [SuperLevels, LockSupers, LockTwoPlayer, EndingReq],
     ),
     OptionGroup(
-        "Item Options",
-        [IncreaseLivesCount, TimerTrapChance]
+        "Trap and Other Options",
+        [IncreaseLivesCount, TimerTrapChance, DeathLink, DeathLinkTrigger, DeathLinkResult]
     )
 ]
 
@@ -84,6 +110,9 @@ option_presets = {
         "require_best_ending": False,
         "increase_starting_lives_count": 17,
         "timer_trap_chance": 0,
+        "deathlink": False,
+        "deathlinktrigger": False,
+        "deathlinkresult": False,
     },
     "hardest": {
         "separate_super_bubble_bobble_levels": True,
@@ -92,6 +121,9 @@ option_presets = {
         "require_best_ending": True,
         "increase_starting_lives_count": 0,
         "timer_trap_chance": 100,
+        "deathlink": True,
+        "deathlinktrigger": True,
+        "deathlinkresult": True,
     },
     "balanced co-op": {
         "separate_super_bubble_bobble_levels": False,
@@ -100,5 +132,8 @@ option_presets = {
         "require_best_ending": True,
         "increase_starting_lives_count": 7,
         "timer_trap_chance": 20,
+        "deathlink": True,
+        "deathlinktrigger": False,
+        "deathlinkresult": False,
     },
 }

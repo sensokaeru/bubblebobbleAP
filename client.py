@@ -104,12 +104,16 @@ class BubbleBobbleClient(BizHawkClient):
             self.lock_2p = bool(slotdata['lock_two_player_mode'])
             self.require_best = bool(slotdata['require_best_ending'])
             self.slot = args["slot"]
+            self.deathlinktrigger = bool(slotdata['deathlinktrigger'])
+            self.deathlinkresult = bool(slotdata['deathlinkresult'])
 
         if cmd == "Retrieved":
             if "bubbobtraps_applied" in args["keys"]:
                 if args["keys"]["bubbobtraps_applied"] == None:
                     self.traps_applied = 0
                 else: self.traps_applied = args["keys"]["bubbobtraps_applied"][str(self.slot)]
+
+        if cmd == "Bounced" and "DeathLink" in ctx.tags and "DeathLink" in args["tags"] and args["data"]["source"] != ctx.slot_info[ctx.slot].name: self.death_received = True
 
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
 
@@ -131,7 +135,7 @@ class BubbleBobbleClient(BizHawkClient):
             self.previous_level = 0
             
         #REMEMBER THAT THIS IS A LIST OF BYTES
-        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0xCA38, 1, "System Bus"), (0x1431F, 1, "PRG ROM"), (0x046C, 1, "RAM"), (0x0327, 1, "RAM"), (0x032C, 1, "RAM"), (0x006F, 1, "RAM"), (0x0400, 1, "RAM"), (0x04CE, 1, "RAM"), (0x0038, 6, "RAM"), (0x01D3, 1, "RAM")])
+        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0xCA38, 1, "System Bus"), (0x1431F, 1, "PRG ROM"), (0x046C, 1, "RAM"), (0x0327, 1, "RAM"), (0x032C, 1, "RAM"), (0x006F, 1, "RAM"), (0x0400, 1, "RAM"), (0x04CE, 1, "RAM"), (0x0038, 6, "RAM"), (0x01D3, 1, "RAM"), (0x00DC, 1, "RAM"), (0x0045, 1, "RAM")])
 
         self.current_level = int.from_bytes(read_data[0])
         p1_lives = int.from_bytes(read_data[1])
@@ -143,6 +147,7 @@ class BubbleBobbleClient(BizHawkClient):
         game_state = int.from_bytes(read_data[13])
         score_check = int.from_bytes(read_data[22:28])
         last_level_beaten = int.from_bytes(read_data[28])
+        completion_check = int.from_bytes(read_data[29])
 
         #this part hopefully identifies super levels
         self.super_check_1 = int.from_bytes(read_data[16])
@@ -173,9 +178,33 @@ class BubbleBobbleClient(BizHawkClient):
         #if self.starting_lives_should_be != self.current_starting_lives or self.starting_lives_should_be != self.current_starting_lives_boss:
             #await bizhawk.write(ctx.bizhawk_ctx, [(0xCA38, self.starting_lives_should_be.to_bytes(1), "System Bus"), (0x1431F, self.starting_lives_should_be.to_bytes(1), "PRG ROM")])
 
-        ####read_data[12] is going to be player state, watch it to implement death links, gets set to 128 or b'\x80' for death state
+        #UNLEASH DEAHTLINK
+        if "DeathLink" in ctx.tags:
+            self.player1_state = int.from_bytes(read_data[12])
+            self.player2_state = int.from_bytes(read_data[30])
+            if self.player1_state != 128: self.player1_dying = False
+            if self.player2_state != 128: self.player2_dying = False
+            if self.player1_state == 128 and self.player1_dying == False:
+                self.player1_dying = True
+                if self.deathlinktrigger: await ctx.send_death("Bub\'s bubble popped.")
+                elif p1_lives == 1 and (p2_lives == 0 or (p2_lives == 1 and self.player2_state == 128)): await ctx.send_death("Bub ran out of lives.")
+            if self.player2_state == 128 and self.player2_dying == False:
+                self.player2_dying = True
+                if self.deathlinktrigger: await ctx.send_death("Bob\'s bubble popped.")
+                elif p2_lives == 1 and (p1_lives == 0 or (p1_lives == 1 and self.player1_state == 128)): await ctx.send_death("Bob ran out of lives.")
+            try:
+                if self.death_received:
+                    self.death_received = False
+                    if self.deathlinkresult:
+                        self.kill_p1 = True
+                        self.kill_p2 = True
+                        self.reset_level = True
+                    else:
+                        if p1_lives > 0: self.writes.append((0x0031, b'\x80', "RAM"))
+                        if p2_lives > 0: self.writes.append((0x0045, b'\x80', "RAM"))
+            except: self.death_received = False
 
-        #this part checks for level completion and sends a check most of the time, and hopefully checks for goal
+        #this part checks for level completion and sends a check hopefully
         #if this part works, delete the next commented out block of garbarge
         if last_level_beaten > 0 and score_check > 0:
             last_level_beaten += 1000
@@ -190,6 +219,7 @@ class BubbleBobbleClient(BizHawkClient):
                     self.locations_sent.append(last_level_beaten)
             except: self.locations_sent = []
 
+#old code for level completion and goal - this shit didn't work and can go to hell if the above code works
 #        if game_state == 128:
 #            if self.boss_fight:
 #                separate = self.separate_supers | self.lock_supers
@@ -213,9 +243,16 @@ class BubbleBobbleClient(BizHawkClient):
 #                        "locations": level_id
 #                    }])
 
-        elif game_state == 255:
+        if game_state == 255:
             self.previous_level = 0
             self.current_level = 0
+
+        #hopefully this checks and sends completion
+        if completion_check == 4 or completion_check == 32 or completion_check == 31 or (completion_check == 29 and not self.require_best):
+            await ctx.send_msgs([{
+                "cmd": "StatusUpdate",
+                "status": ClientStatus.CLIENT_GOAL
+            }])
 
         if self.current_level > 0 and (p1_lives > 0 or p2_lives > 0):
             separate = self.separate_supers | self.lock_supers
