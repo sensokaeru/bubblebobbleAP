@@ -70,6 +70,9 @@ ITEM_NAME_TO_ID = {
     "- - - - I": 58,
     "- - - - J": 59,
     "a popped bubble": 60,
+    "Unlock Shoes": 61,
+    "Unlock Blue Candy": 62,
+    "Unlock Green Candy": 63,
     #####consider adding new filler, like fruit for points, consider extra lives also
 }
 
@@ -134,6 +137,9 @@ DEFAULT_ITEM_CLASSIFICATIONS = {
     "- - - - I": ItemClassification.progression,
     "- - - - J": ItemClassification.progression,
     "a popped bubble": ItemClassification.filler,
+    "Unlock Shoes": ItemClassification.useful,
+    "Unlock Blue Candy": ItemClassification.useful,
+    "Unlock Green Candy": ItemClassification.useful,
 }
 
 class BubbleBobbleItem(Item):
@@ -209,6 +215,9 @@ def create_all_items(world: BubbleBobbleWorld) -> None:
         world.create_item("- - - - H"),
         world.create_item("- - - - I"),
         world.create_item("- - - - J"),
+        world.create_item("Unlock Shoes"),
+        world.create_item("Unlock Blue Candy"),
+        world.create_item("Unlock Green Candy"),
     ]
 
     def generatestartinglevels():

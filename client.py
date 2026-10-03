@@ -13,6 +13,7 @@ logger = logging.getLogger("Client")
 from . import levels
 #call levels data as levels.database
 from .items import ITEM_NAME_TO_ID
+from .rom import PlayerNameAddress, APidentifierAddress
 
 password_selector_addresses = [ 0x0502, 0x0503, 0x0504, 0x0505, 0x0506 ]
 
@@ -66,7 +67,7 @@ def levelcheck(ids: list, level: int, purpose: int, superlevel: bool, separate: 
 class BubbleBobbleClient(BizHawkClient):
     game = "Bubble Bobble"
     system = "NES"
-    #patch_suffix = ".apbubbob"
+    patch_suffix = ".apbubbob"
 
     def __init__(self):
         super().__init__()
@@ -77,23 +78,27 @@ class BubbleBobbleClient(BizHawkClient):
             self.ids_received.append(int(items[0]))
 
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
-        #this will have to be largely redone when patching
-        rom_hash = await bizhawk.get_hash(ctx.bizhawk_ctx)
         rom_system = await bizhawk.get_system(ctx.bizhawk_ctx)
-        if rom_hash == "B220CB06A7E23C55A982FD75B32554D0BF511B7B" and rom_system == "NES":
-            await bizhawk.write(ctx.bizhawk_ctx, [(0x0402, b'\x00', "RAM")])
-            ctx.game = self.game
-            ctx.items_handling = 0b111
-            ctx.want_slot_data = True
-            ctx.watcher_timeout = 0.1
-            logger.info('-')
-            logger.info('Use \'/find_level Level ##\' or \'/find_level Super ##\' to identify a valid password for a level.')
-            logger.info('-')
-            ctx.command_processor.commands["find_password"] = cmd_find_password
-            ctx.command_processor.commands["find_level"] = cmd_find_password
-            self.initialize = True
-            return True
-        else: return False
+        rom_identifier = await bizhawk.read(ctx.bizhawk_ctx,[(APidentifierAddress, 0x8, "PRG ROM")])
+        rom_identifier = rom_identifier.decode("ascii")
+        rom_player_name = await bizhawk.read(ctx.bizhawk_ctx,[(PlayerNameAddress, 0x20, "PRG ROM")])
+        rom_player_name = bytes([byte for byte in rom_player_name if byte != 0]).decode("utf-8")
+        try:
+            if rom_system == "NES" and rom_identifier == "BUBBOBAP":
+                await bizhawk.write(ctx.bizhawk_ctx, [(0x0402, b'\x00', "RAM")])
+                ctx.game = self.game
+                ctx.items_handling = 0b111
+                ctx.want_slot_data = True
+                ctx.watcher_timeout = 0.1
+                logger.info('-')
+                logger.info('Use \'/find_level Level ##\' or \'/find_level Super ##\' to identify a valid password for a level.')
+                logger.info('-')
+                ctx.command_processor.commands["find_password"] = cmd_find_password
+                ctx.command_processor.commands["find_level"] = cmd_find_password
+                self.initialize = True
+                return True
+            else: return False
+        except: return False
 
     def on_package(self, ctx: "BizHawkClientContext", cmd: str, args: dict) -> None:
         
@@ -135,7 +140,7 @@ class BubbleBobbleClient(BizHawkClient):
             self.previous_level = 0
             
         #REMEMBER THAT THIS IS A LIST OF BYTES
-        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0xCA38, 1, "System Bus"), (0x1431F, 1, "PRG ROM"), (0x046C, 1, "RAM"), (0x0327, 1, "RAM"), (0x032C, 1, "RAM"), (0x006F, 1, "RAM"), (0x0400, 1, "RAM"), (0x04CE, 1, "RAM"), (0x0038, 6, "RAM"), (0x01D3, 1, "RAM"), (0x00DC, 1, "RAM"), (0x0045, 1, "RAM")])
+        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0x046C, 1, "RAM"), (0x0327, 1, "RAM"), (0x032C, 1, "RAM"), (0x006F, 1, "RAM"), (0x0400, 1, "RAM"), (0x04CE, 1, "RAM"), (0x0038, 6, "RAM"), (0x01D3, 1, "RAM"), (0x00DC, 1, "RAM"), (0x0045, 1, "RAM"), (0x0030, 1, "RAM")])
 
         self.current_level = int.from_bytes(read_data[0])
         p1_lives = int.from_bytes(read_data[1])
@@ -145,23 +150,23 @@ class BubbleBobbleClient(BizHawkClient):
         current_letter_position = int.from_bytes(read_data[10])
         current_timer = int.from_bytes(read_data[11])
         game_state = int.from_bytes(read_data[13])
-        score_check = int.from_bytes(read_data[22:28])
-        last_level_beaten = int.from_bytes(read_data[28])
-        completion_check = int.from_bytes(read_data[29])
+        score_check = int.from_bytes(read_data[20])
+        last_level_beaten = int.from_bytes(read_data[21])
+        completion_check = int.from_bytes(read_data[22])
 
         #this part hopefully identifies super levels
-        self.super_check_1 = int.from_bytes(read_data[16])
+        self.super_check_1 = int.from_bytes(read_data[14])
         if self.super_check_1 >= 1: self.super_level = True
         else: self.super_level = False
 
         #this hopefully checks for boss fights
-        self.boss_check_1 = int.from_bytes(read_data[17])
-        self.boss_check_2 = int.from_bytes(read_data[18])
-        self.boss_hp = int.from_bytes(read_data[19])
+        self.boss_check_1 = int.from_bytes(read_data[15])
+        self.boss_check_2 = int.from_bytes(read_data[16])
+        self.boss_hp = int.from_bytes(read_data[17])
         if self.boss_check_1 == 102 and self.boss_check_2 == 4 and (self.current_level == 99 or self.current_level >= 112): self.boss_fight = True
         else: self.boss_fight = False
         
-        self.transition = int.from_bytes(read_data[20])
+        self.transition = int.from_bytes(read_data[18])
         #this is set to 2 for level transitions
 
         if self.current_level == 0:
@@ -170,18 +175,14 @@ class BubbleBobbleClient(BizHawkClient):
         level_difference = self.current_level - self.previous_level
         if level_difference < 0: self.current_level = self.previous_level
 
-        #this checks and corrects starting lives
-        self.current_starting_lives = int.from_bytes(read_data[14])
-        self.current_starting_lives_boss = int.from_bytes(read_data[15])
-        idsforthis = self.ids_received
-        self.starting_lives_should_be = idsforthis.count(2) + 3
-        #if self.starting_lives_should_be != self.current_starting_lives or self.starting_lives_should_be != self.current_starting_lives_boss:
-            #await bizhawk.write(ctx.bizhawk_ctx, [(0xCA38, self.starting_lives_should_be.to_bytes(1), "System Bus"), (0x1431F, self.starting_lives_should_be.to_bytes(1), "PRG ROM")])
+        #this hopefully sets starting lives
+        self.starting_lives_should_be = self.ids_received.count(2) + 3
+        self.writes.append((0x01D0, self.starting_lives_should_be.to_bytes(1), "RAM"))
 
         #UNLEASH DEAHTLINK
         if "DeathLink" in ctx.tags:
             self.player1_state = int.from_bytes(read_data[12])
-            self.player2_state = int.from_bytes(read_data[30])
+            self.player2_state = int.from_bytes(read_data[23])
             if self.player1_state != 128: self.player1_dying = False
             if self.player2_state != 128: self.player2_dying = False
             if self.player1_state == 128 and self.player1_dying == False:
@@ -260,6 +261,8 @@ class BubbleBobbleClient(BizHawkClient):
                 check99 = levelcheck(self.ids_received, 99, 0, self.super_level, separate)
                 checkB2 = levelcheck(self.ids_received, 112, 0, self.super_level, separate)
                 check = check99 | checkB2
+                if 5 not in self.ids_received:
+                    if self.boss_hp < 60: self.writes.append((0x006F, b'\x3c', "RAM"))
             else: check = levelcheck(self.ids_received, self.current_level, 0, self.super_level, separate)
 
             if check:
@@ -322,7 +325,7 @@ class BubbleBobbleClient(BizHawkClient):
                     self.writes.append((password_address, [check_selected_letter_id], "RAM"))
             except: self.compile_ids(ctx)
 
-        self.current_elements = int.from_bytes(read_data[21])
+        self.current_elements = int.from_bytes(read_data[19])
         self.elements_unlocked = 17
         if 6 in self.ids_received: self.elements_unlocked += 34
         if 4 in self.ids_received: self.elements_unlocked += 68
@@ -330,9 +333,20 @@ class BubbleBobbleClient(BizHawkClient):
         self.current_elements &= self.elements_unlocked
         self.writes.append((0x04CE, self.current_elements.to_bytes(1), "RAM"))
 
+        self.current_powerups = int.from_bytes(read_data[24])
+        self.powerups_unlocked = 56
+        if 61 in self.ids_received: self.powerups_unlocked += 1
+        if 62 in self.ids_received: self.powerups_unlocked += 2
+        if 63 in self.ids_received: self.powerups_unlocked += 4
+        if 7 in self.ids_received: self.powerups_unlocked += 64
+        self.current_powerups &= self.powerups_unlocked
+        self.writes.append((0x0030, self.current_powerups.to_bytes(1), "RAM"))
+
         if 3 in self.ids_received: self.writes.append((0x01D1, b'\x01', "RAM"))
+        else: self.writes.append((0x01D1, b'\x00', "RAM"))
         
         if self.kill_p1: self.writes.append((0x002E, b'\x00', "RAM"))
         if self.kill_p2: self.writes.append((0x0042, b'\x00', "RAM"))
         if self.reset_level: self.writes.append((0x0401, b'\x00', "RAM"))
+
         await bizhawk.write(ctx.bizhawk_ctx, self.writes)
