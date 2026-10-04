@@ -6,12 +6,12 @@ from settings import get_settings
 import struct
 import Utils
 
-BubBobHash = [ "B220CB06A7E23C55A982FD75B32554D0BF511B7B", ]
+BubBobHash = [ "9f08eff58f4727d0d172ca008d3894e2", ]
 
 PlayerNameAddress = 0x1BEE0
 
-APidentifierAddress = 0x1800
-APidentifier = ( 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, )
+APidentifierAddress = 0x01BED0
+APidentifier = ( 0x42, 0x55, 0x42, 0x42, 0x4F, 0x42, 0x41, 0x50, )
 
 BounceBlockAddress = 0x01BF40
 BounceBlockCode = (	0x8d, 0xd2, 0x01, 0xad, 0xd1, 0x01, 0xf0, 0x07, 0xad, 0xd2, 0x01, 0x20, 0x6b, 0xd3, 0x60, 0xad, 0xd2, 0x01, 0x60, )
@@ -43,20 +43,26 @@ class BubbleBobbleProcedurePatch(APProcedurePatch, APTokenMixin):
         return get_base_rom_bytes()
 
 def write_tokens(world:World, patch:BubbleBobbleProcedurePatch):
-    AllChanges = [
-        [ APidentifierAddress, APidentifier, ],
-        [ PlayerNameAddress, world.playerName, ],
-        [ BounceBlockAddress, BounceBlockCode, ],
-        [ BounceBlockJump, BounceBlockCode, ],
-        [ LastLevelAddress, LastLevelCode, ],
-        [ LastLevelJump, LastLevelJumpCode, ],
-        [ StartingLivesAddress, StartingLivesCode, ],
-        [ StartingLivesJump1, StartingLivesJumpCode, ],
-        [ StartingLivesJump2, StartingLivesJumpCode, ],
-    ]
-    for x, y in AllChanges:
-        for j, b in enumerate(y):
-            patch.write_token(APTokenTypes.WRITE, x + j, struct.pack("<B", b))
+
+    for j, b in enumerate(world.playerName):
+        patch.write_token(APTokenTypes.WRITE, PlayerNameAddress + j, struct.pack("<B", b))
+    for j, b in enumerate(APidentifier):
+        patch.write_token(APTokenTypes.WRITE, APidentifierAddress + j, struct.pack("<B", b))
+    for j, b in enumerate(BounceBlockCode):
+        patch.write_token(APTokenTypes.WRITE, BounceBlockAddress + j, struct.pack("<B", b))
+    for j, b in enumerate(BounceBlockJumpCode):
+        patch.write_token(APTokenTypes.WRITE, BounceBlockJump + j, struct.pack("<B", b))
+    for j, b in enumerate(LastLevelCode):
+        patch.write_token(APTokenTypes.WRITE, LastLevelAddress + j, struct.pack("<B", b))
+    for j, b in enumerate(LastLevelJumpCode):
+        patch.write_token(APTokenTypes.WRITE, LastLevelJump + j, struct.pack("<B", b))
+    for j, b in enumerate(StartingLivesCode):
+        patch.write_token(APTokenTypes.WRITE, StartingLivesAddress + j, struct.pack("<B", b))
+    for j, b in enumerate(StartingLivesJumpCode):
+        patch.write_token(APTokenTypes.WRITE, StartingLivesJump1 + j, struct.pack("<B", b))
+        patch.write_token(APTokenTypes.WRITE, StartingLivesJump2 + j, struct.pack("<B", b))
+
+    patch.write_file("token_data.bin", patch.get_token_binary())
 
 def get_base_rom_bytes(file_name: str ="") -> bytes:
     base_rom_bytes = getattr(get_base_rom_bytes, "base_rom_bytes", None)

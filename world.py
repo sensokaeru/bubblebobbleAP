@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from worlds.AutoWorld import World
 
@@ -10,6 +10,15 @@ from . import rom
 import os
 import Utils
 import settings
+
+class BubbleBobbleSettings(settings.Group):
+    class RomFile(settings.UserFilePath):
+        """File name of the Bubble Bobble US ROM"""
+        copy_to = "Bubble Bobble (USA).nes"
+        description = "Bubble Bobble (USA) ROM file"
+        md5s = rom.BubBobHash
+    
+    rom_file: RomFile = RomFile(RomFile.copy_to)
 
 class BubbleBobbleWorld(World):
     """
@@ -24,6 +33,8 @@ class BubbleBobbleWorld(World):
 
     options_dataclass = bubblebobble_options.BubbleBobbleOptions
     options: bubblebobble_options.BubbleBobbleOptions
+    settings: ClassVar[BubbleBobbleSettings]
+    settings_key = "bubble_bobble_settings"
 
     location_name_to_id = locations.LOCATION_NAME_TO_ID
     item_name_to_id = items.ITEM_NAME_TO_ID
@@ -65,11 +76,3 @@ class BubbleBobbleWorld(World):
         out_file_name = self.multiworld.get_out_file_name_base(self.player)
         patch.write(os.path.join(output_directory, f"{out_file_name}{patch.patch_file_ending}"))
 
-class BubbleBobbleSettings(settings.Group):
-    class RomFile(settings.UserFilePath):
-        """File name of the Bubble Bobble US ROM"""
-        copy_to = "Bubble Bobble (USA).nes"
-        description = "Bubble Bobble (USA) ROM file"
-        md5s = rom.BubBobHash
-    
-    rom_file: RomFile = RomFile(RomFile.copy_to)

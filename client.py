@@ -79,12 +79,18 @@ class BubbleBobbleClient(BizHawkClient):
 
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         rom_system = await bizhawk.get_system(ctx.bizhawk_ctx)
-        rom_identifier = await bizhawk.read(ctx.bizhawk_ctx,[(APidentifierAddress, 0x8, "PRG ROM")])
-        rom_identifier = rom_identifier.decode("ascii")
-        rom_player_name = await bizhawk.read(ctx.bizhawk_ctx,[(PlayerNameAddress, 0x20, "PRG ROM")])
-        rom_player_name = bytes([byte for byte in rom_player_name if byte != 0]).decode("utf-8")
+        rom_identifier = await bizhawk.read(ctx.bizhawk_ctx,[(APidentifierAddress - 0x10, 0x8, "PRG ROM")])
+        rom_identifier = rom_identifier[0]
+        rom_player_name = await bizhawk.read(ctx.bizhawk_ctx,[(PlayerNameAddress - 0x10, 0x20, "PRG ROM")])
+        #self.rom_slot_name = bytes([byte for byte in rom_player_name if byte != 0]).decode(encoding="utf-8")
+
         try:
-            if rom_system == "NES" and rom_identifier == "BUBBOBAP":
+            if rom_system == "NES" and rom_identifier == b'\x42\55\42\42\4f\42\41\50':
+                self.rom_slot_name = ""
+                for byte in rom_player_name:
+                    print(byte)
+                    if byte != 0: self.rom_slot_name += bytes(byte).decode(encoding="utf-8")
+                    print(self.rom_slot_name)
                 await bizhawk.write(ctx.bizhawk_ctx, [(0x0402, b'\x00', "RAM")])
                 ctx.game = self.game
                 ctx.items_handling = 0b111
