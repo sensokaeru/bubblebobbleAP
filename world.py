@@ -58,7 +58,7 @@ class BubbleBobbleWorld(World):
         return items.get_random_filler_item_name(self)
 
     def fill_slot_data(self) -> Mapping[str, Any]:
-        return self.options.as_dict("separate_super_bubble_bobble_levels", "lock_super_bubble_bobble_levels", "lock_two_player_mode", "require_best_ending")
+        return self.options.as_dict("separate_super_bubble_bobble_levels", "lock_super_bubble_bobble_levels", "lock_two_player_mode", "require_best_ending", "deathlinktrigger", "deathlinkresult")
 
     def generate_output(self, output_directory: str):
         outfilepname = f"_P{self.player}"

@@ -81,16 +81,13 @@ class BubbleBobbleClient(BizHawkClient):
         rom_system = await bizhawk.get_system(ctx.bizhawk_ctx)
         rom_identifier = await bizhawk.read(ctx.bizhawk_ctx,[(APidentifierAddress - 0x10, 0x8, "PRG ROM")])
         rom_identifier = rom_identifier[0]
+        rom_identifier = rom_identifier.decode("ascii")
         rom_player_name = await bizhawk.read(ctx.bizhawk_ctx,[(PlayerNameAddress - 0x10, 0x20, "PRG ROM")])
-        #self.rom_slot_name = bytes([byte for byte in rom_player_name if byte != 0]).decode(encoding="utf-8")
+        rom_player_name = bytes([byte for byte in rom_player_name[0] if byte != 0]).decode("ascii")
+        self.rom_slot_name = rom_player_name
 
         try:
-            if rom_system == "NES" and rom_identifier == b'\x42\55\42\42\4f\42\41\50':
-                self.rom_slot_name = ""
-                for byte in rom_player_name:
-                    print(byte)
-                    if byte != 0: self.rom_slot_name += bytes(byte).decode(encoding="utf-8")
-                    print(self.rom_slot_name)
+            if rom_system == "NES" and rom_identifier == "BUBBOBAP":
                 await bizhawk.write(ctx.bizhawk_ctx, [(0x0402, b'\x00', "RAM")])
                 ctx.game = self.game
                 ctx.items_handling = 0b111
@@ -106,17 +103,21 @@ class BubbleBobbleClient(BizHawkClient):
             else: return False
         except: return False
 
+    async def set_auth(self, ctx: "BizHawkClientContext") -> None:
+        ctx.auth = self.rom_slot_name
+
     def on_package(self, ctx: "BizHawkClientContext", cmd: str, args: dict) -> None:
         
         if cmd == "Connected":
             slotdata = args['slot_data']
+            logger.info(slotdata)
             self.separate_supers = bool(slotdata['separate_super_bubble_bobble_levels'])
             self.lock_supers = bool(slotdata['lock_super_bubble_bobble_levels'])
             self.lock_2p = bool(slotdata['lock_two_player_mode'])
             self.require_best = bool(slotdata['require_best_ending'])
-            self.slot = args["slot"]
             self.deathlinktrigger = bool(slotdata['deathlinktrigger'])
             self.deathlinkresult = bool(slotdata['deathlinkresult'])
+            self.slot = args["slot"]
 
         if cmd == "Retrieved":
             if "bubbobtraps_applied" in args["keys"]:
@@ -212,8 +213,7 @@ class BubbleBobbleClient(BizHawkClient):
             except: self.death_received = False
 
         #this part checks for level completion and sends a check hopefully
-        #if this part works, delete the next commented out block of garbarge
-        if last_level_beaten > 0 and score_check > 0:
+        if last_level_beaten > 0 and score_check > 0 and self.transition == 2:
             last_level_beaten += 1000
             if self.separate_supers and self.super_level: last_level_beaten += 1000
             try:
@@ -225,30 +225,6 @@ class BubbleBobbleClient(BizHawkClient):
                     }])
                     self.locations_sent.append(last_level_beaten)
             except: self.locations_sent = []
-
-#old code for level completion and goal - this shit didn't work and can go to hell if the above code works
-#        if game_state == 128:
-#            if self.boss_fight:
-#                separate = self.separate_supers | self.lock_supers
-#                check99 = levelcheck(self.ids_received, 99, 0, self.super_level, separate)
-#                checkB2 = levelcheck(self.ids_received, 112, 0, self.super_level, separate)
-#                if (check99 or checkB2) and self.boss_hp == 0:
-#                    await ctx.send_msgs([{
-#                        "cmd": "StatusUpdate",
-#                        "status": ClientStatus.CLIENT_GOAL
-#                    }])
-#            else:
-#                separate = self.separate_supers | self.lock_supers
-#                checkprevious = levelcheck(self.ids_received, self.previous_level, 0, self.super_level, separate)
-#                level_difference = self.current_level - self.previous_level
-#                if checkprevious and level_difference == 1:
-#                    level_id = self.previous_level + 1000
-#                    if self.separate_supers and self.super_level: level_id += 1000
-#                    level_id = [level_id]
-#                    await ctx.send_msgs([{
-#                        "cmd": "LocationChecks",
-#                        "locations": level_id
-#                    }])
 
         if game_state == 255:
             self.previous_level = 0
