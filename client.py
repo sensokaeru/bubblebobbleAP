@@ -208,6 +208,8 @@ class BubbleBobbleClient(BizHawkClient):
                         self.kill_p2 = True
                         self.reset_level = True
                     else:
+                        self.player1_dying = True
+                        self.player2_dying = True
                         if p1_lives > 0: self.writes.append((0x0031, b'\x80', "RAM"))
                         if p2_lives > 0: self.writes.append((0x0045, b'\x80', "RAM"))
             except: self.death_received = False
