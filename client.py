@@ -45,6 +45,17 @@ def cmd_find_password(self: 'BizHawkClientCommandProcessor', checklevel: str = "
     except:
         logger.info('Invalid or unavailable level')
 
+def cmd_toggle_deathlink(self: 'BizHawkClientCommandProcessor'):
+    """Toggles death link."""
+    ctx = self.ctx
+    client = ctx.client_handler
+    if client.deathlink:
+        client.deathlink = False
+        logger.info('Deathlink disabled')
+    else:
+        client.deathlink = True
+        logger.info('Deathlink enabled')
+
 def levelcheck(ids: list, level: int, purpose: int, superlevel: bool, separate: bool):
     #purpose is 0 for checking levels for active gameplay or 1 for returning a valid password
 
@@ -98,6 +109,7 @@ class BubbleBobbleClient(BizHawkClient):
                 logger.info('-')
                 ctx.command_processor.commands["find_password"] = cmd_find_password
                 ctx.command_processor.commands["find_level"] = cmd_find_password
+                ctx.command_processor.commands["toggle_deathlink"] = cmd_toggle_deathlink
                 self.initialize = True
                 return True
             else: return False
@@ -110,11 +122,11 @@ class BubbleBobbleClient(BizHawkClient):
         
         if cmd == "Connected":
             slotdata = args['slot_data']
-            logger.info(slotdata)
             self.separate_supers = bool(slotdata['separate_super_bubble_bobble_levels'])
             self.lock_supers = bool(slotdata['lock_super_bubble_bobble_levels'])
             self.lock_2p = bool(slotdata['lock_two_player_mode'])
             self.require_best = bool(slotdata['require_best_ending'])
+            self.deathlink = bool(slotdata['deathlink'])
             self.deathlinktrigger = bool(slotdata['deathlinktrigger'])
             self.deathlinkresult = bool(slotdata['deathlinkresult'])
             self.slot = args["slot"]
@@ -125,7 +137,7 @@ class BubbleBobbleClient(BizHawkClient):
                     self.traps_applied = 0
                 else: self.traps_applied = args["keys"]["bubbobtraps_applied"][str(self.slot)]
 
-        if cmd == "Bounced" and "DeathLink" in ctx.tags and "DeathLink" in args["tags"] and args["data"]["source"] != ctx.slot_info[ctx.slot].name: self.death_received = True
+        if cmd == "Bounced" and self.deathlink and "DeathLink" in args["tags"] and args["data"]["source"] != ctx.slot_info[ctx.slot].name: self.death_received = True
 
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
 
@@ -187,7 +199,7 @@ class BubbleBobbleClient(BizHawkClient):
         self.writes.append((0x01D0, self.starting_lives_should_be.to_bytes(1), "RAM"))
 
         #UNLEASH DEAHTLINK
-        if "DeathLink" in ctx.tags:
+        if self.deathlink:
             self.player1_state = int.from_bytes(read_data[12])
             self.player2_state = int.from_bytes(read_data[23])
             if self.player1_state != 128: self.player1_dying = False
@@ -215,7 +227,7 @@ class BubbleBobbleClient(BizHawkClient):
             except: self.death_received = False
 
         #this part checks for level completion and sends a check hopefully
-        if last_level_beaten > 0 and score_check > 0 and self.transition == 2:
+        if last_level_beaten > 0 and score_check > 0 and (self.transition == 2 or self.boss_fight):
             last_level_beaten += 1000
             if self.separate_supers and self.super_level: last_level_beaten += 1000
             try:
@@ -246,7 +258,7 @@ class BubbleBobbleClient(BizHawkClient):
                 checkB2 = levelcheck(self.ids_received, 112, 0, self.super_level, separate)
                 check = check99 | checkB2
                 if 5 not in self.ids_received:
-                    if self.boss_hp < 60: self.writes.append((0x006F, b'\x3c', "RAM"))
+                    if self.boss_hp < 55: self.writes.append((0x006F, b'\x3c', "RAM"))
             else: check = levelcheck(self.ids_received, self.current_level, 0, self.super_level, separate)
 
             if check:
@@ -319,10 +331,11 @@ class BubbleBobbleClient(BizHawkClient):
 
         self.current_powerups = int.from_bytes(read_data[24])
         self.powerups_unlocked = 56
-        if 61 in self.ids_received: self.powerups_unlocked += 1
-        if 62 in self.ids_received: self.powerups_unlocked += 2
-        if 63 in self.ids_received: self.powerups_unlocked += 4
-        if 7 in self.ids_received: self.powerups_unlocked += 64
+        if not self.boss_fight:
+            if 61 in self.ids_received: self.powerups_unlocked += 1
+            if 62 in self.ids_received: self.powerups_unlocked += 2
+            if 63 in self.ids_received: self.powerups_unlocked += 4
+        elif 7 in self.ids_received: self.powerups_unlocked += 71
         self.current_powerups &= self.powerups_unlocked
         self.writes.append((0x0030, self.current_powerups.to_bytes(1), "RAM"))
 
