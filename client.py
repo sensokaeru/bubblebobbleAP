@@ -137,7 +137,7 @@ class BubbleBobbleClient(BizHawkClient):
                     self.traps_applied = 0
                 else: self.traps_applied = args["keys"]["bubbobtraps_applied"][str(self.slot)]
 
-        if cmd == "Bounced" and self.deathlink and "DeathLink" in args["tags"] and args["data"]["source"] != ctx.slot_info[ctx.slot].name: self.death_received = True
+        if cmd == "Bounced" and self.deathlink and "tags" in args and "DeathLink" in args["tags"] and args["data"]["source"] != ctx.slot_info[ctx.slot].name: self.death_received = True
 
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
 
@@ -188,46 +188,49 @@ class BubbleBobbleClient(BizHawkClient):
         self.transition = int.from_bytes(read_data[18])
         #this is set to 2 for level transitions
 
-        if self.current_level == 0:
+        if self.current_level == 0 and self.previous_level != 0:
             if p1_lives == 0 and p2_lives == 0: self.previous_level = 0
             else: self.current_level = self.previous_level
         level_difference = self.current_level - self.previous_level
-        if level_difference < 0: self.current_level = self.previous_level
+        if level_difference < 0: self.current_level = last_level_beaten + 1
 
-        #this hopefully sets starting lives
+        #this sets starting lives
         self.starting_lives_should_be = self.ids_received.count(2) + 3
         self.writes.append((0x01D0, self.starting_lives_should_be.to_bytes(1), "RAM"))
 
         #UNLEASH DEAHTLINK
-        if self.deathlink:
-            self.player1_state = int.from_bytes(read_data[12])
-            self.player2_state = int.from_bytes(read_data[23])
-            if self.player1_state != 128: self.player1_dying = False
-            if self.player2_state != 128: self.player2_dying = False
-            if self.player1_state == 128 and self.player1_dying == False:
-                self.player1_dying = True
-                if self.deathlinktrigger: await ctx.send_death("Bub\'s bubble popped.")
-                elif p1_lives == 1 and (p2_lives == 0 or (p2_lives == 1 and self.player2_state == 128)): await ctx.send_death("Bub ran out of lives.")
-            if self.player2_state == 128 and self.player2_dying == False:
-                self.player2_dying = True
-                if self.deathlinktrigger: await ctx.send_death("Bob\'s bubble popped.")
-                elif p2_lives == 1 and (p1_lives == 0 or (p1_lives == 1 and self.player1_state == 128)): await ctx.send_death("Bob ran out of lives.")
-            try:
-                if self.death_received:
-                    self.death_received = False
-                    if self.deathlinkresult:
-                        self.kill_p1 = True
-                        self.kill_p2 = True
-                        self.reset_level = True
-                    else:
-                        self.player1_dying = True
-                        self.player2_dying = True
-                        if p1_lives > 0: self.writes.append((0x0031, b'\x80', "RAM"))
-                        if p2_lives > 0: self.writes.append((0x0045, b'\x80', "RAM"))
-            except: self.death_received = False
+        try:
+            if self.deathlink:
+                self.player1_state = int.from_bytes(read_data[12])
+                self.player2_state = int.from_bytes(read_data[23])
+                if self.player1_state != 128: self.player1_dying = False
+                if self.player2_state != 128: self.player2_dying = False
+                if self.player1_state == 128 and self.player1_dying == False:
+                    self.player1_dying = True
+                    if self.deathlinktrigger: await ctx.send_death("Bub\'s bubble popped.")
+                    elif p1_lives == 1 and (p2_lives == 0 or (p2_lives == 1 and self.player2_state == 128)): await ctx.send_death("Bub ran out of lives.")
+                if self.player2_state == 128 and self.player2_dying == False:
+                    self.player2_dying = True
+                    if self.deathlinktrigger: await ctx.send_death("Bob\'s bubble popped.")
+                    elif p2_lives == 1 and (p1_lives == 0 or (p1_lives == 1 and self.player1_state == 128)): await ctx.send_death("Bob ran out of lives.")
+                try:
+                    if self.death_received:
+                        self.death_received = False
+                        if self.deathlinkresult:
+                            self.kill_p1 = True
+                            self.kill_p2 = True
+                            self.reset_level = True
+                        else:
+                            self.player1_dying = True
+                            self.player2_dying = True
+                            if p1_lives > 0: self.writes.append((0x0031, b'\x80', "RAM"))
+                            if p2_lives > 0: self.writes.append((0x0045, b'\x80', "RAM"))
+                except: self.death_received = False
+        except: self.deathlink = False
 
         #this part checks for level completion and sends a check hopefully
         if last_level_beaten > 0 and score_check > 0 and (self.transition == 2 or self.boss_fight):
+            if self.boss_fight and (last_level_beaten == 98 or last_level_beaten == 111): last_level_beaten += 1
             last_level_beaten += 1000
             if self.separate_supers and self.super_level: last_level_beaten += 1000
             try:
@@ -288,7 +291,7 @@ class BubbleBobbleClient(BizHawkClient):
                     except: await ctx.send_msgs([{"cmd": "Get", "keys": ["bubbobtraps_applied"]}])
 
             #this part kills you if you're in a level that you're not supposed to be in
-            elif not check: 
+            elif not check:
                 self.kill_p1 = True
                 self.kill_p2 = True
                 self.reset_level = True

@@ -13,7 +13,8 @@ PlayerNameAddress = 0x1BEE0
 APidentifierAddress = 0x01BED0
 APidentifier = ( 0x42, 0x55, 0x42, 0x42, 0x4F, 0x42, 0x41, 0x50, )
 
-BounceBlockAddress = 0x01BF40
+BounceBlockAddress1 = 0x01BF40
+BounceBlockAddress2 = 0x017f40
 BounceBlockCode = (	0x8d, 0xd2, 0x01, 0xad, 0xd1, 0x01, 0xf0, 0x07, 0xad, 0xd2, 0x01, 0x20, 0x6b, 0xd3, 0x60, 0xad, 0xd2, 0x01, 0x60, )
 
 BounceBlockJump = 0x01D35A
@@ -49,7 +50,8 @@ def write_tokens(world:World, patch:BubbleBobbleProcedurePatch):
     for j, b in enumerate(APidentifier):
         patch.write_token(APTokenTypes.WRITE, APidentifierAddress + j, struct.pack("<B", b))
     for j, b in enumerate(BounceBlockCode):
-        patch.write_token(APTokenTypes.WRITE, BounceBlockAddress + j, struct.pack("<B", b))
+        patch.write_token(APTokenTypes.WRITE, BounceBlockAddress1 + j, struct.pack("<B", b))
+        patch.write_token(APTokenTypes.WRITE, BounceBlockAddress2 + j, struct.pack("<B", b))
     for j, b in enumerate(BounceBlockJumpCode):
         patch.write_token(APTokenTypes.WRITE, BounceBlockJump + j, struct.pack("<B", b))
     for j, b in enumerate(LastLevelCode):
