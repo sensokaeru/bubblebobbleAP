@@ -108,6 +108,7 @@ class BubbleBobbleClient(BizHawkClient):
                 ctx.watcher_timeout = 0.1
                 logger.info('-')
                 logger.info('Use \'/find_level Level ##\' or \'/find_level Super ##\' to identify a valid password for a level.')
+                logger.info('Use \'/toggle_deathlink\' to turn death link on and off.')
                 logger.info('-')
                 ctx.command_processor.commands["find_password"] = cmd_find_password
                 ctx.command_processor.commands["find_level"] = cmd_find_password
