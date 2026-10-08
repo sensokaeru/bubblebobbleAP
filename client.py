@@ -54,6 +54,8 @@ def cmd_toggle_deathlink(self: 'BizHawkClientCommandProcessor'):
         logger.info('Deathlink disabled')
     else:
         client.deathlink = True
+        if "DeathLink" not in ctx.tags:
+            ctx.tags.add("DeathLink")
         logger.info('Deathlink enabled')
 
 def levelcheck(ids: list, level: int, purpose: int, superlevel: bool, separate: bool):
@@ -129,6 +131,8 @@ class BubbleBobbleClient(BizHawkClient):
             self.deathlink = bool(slotdata['deathlink'])
             self.deathlinktrigger = bool(slotdata['deathlinktrigger'])
             self.deathlinkresult = bool(slotdata['deathlinkresult'])
+            if "DeathLink" not in ctx.tags:
+                ctx.tags.add("DeathLink")
             self.slot = args["slot"]
 
         if cmd == "Retrieved":
@@ -161,7 +165,7 @@ class BubbleBobbleClient(BizHawkClient):
         #REMEMBER THAT THIS IS A LIST OF BYTES
         read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0x046C, 1, "RAM"), (0x0327, 1, "RAM"), (0x032C, 1, "RAM"), (0x006F, 1, "RAM"), (0x0400, 1, "RAM"), (0x04CE, 1, "RAM"), (0x0038, 6, "RAM"), (0x01D3, 1, "RAM"), (0x00DC, 1, "RAM"), (0x0045, 1, "RAM"), (0x0030, 1, "RAM")])
 
-        self.current_level = int.from_bytes(read_data[0])
+        #self.current_level = int.from_bytes(read_data[0])
         p1_lives = int.from_bytes(read_data[1])
         p2_lives = int.from_bytes(read_data[2])
         self.current_enemy_count = int.from_bytes(read_data[3])
@@ -171,6 +175,7 @@ class BubbleBobbleClient(BizHawkClient):
         game_state = int.from_bytes(read_data[13])
         score_check = int.from_bytes(read_data[20])
         last_level_beaten = int.from_bytes(read_data[21])
+        self.current_level = last_level_beaten + 1
         completion_check = int.from_bytes(read_data[22])
 
         #this part hopefully identifies super levels
@@ -188,11 +193,11 @@ class BubbleBobbleClient(BizHawkClient):
         self.transition = int.from_bytes(read_data[18])
         #this is set to 2 for level transitions
 
-        if self.current_level == 0 and self.previous_level != 0:
-            if p1_lives == 0 and p2_lives == 0: self.previous_level = 0
-            else: self.current_level = self.previous_level
-        level_difference = self.current_level - self.previous_level
-        if level_difference < 0: self.current_level = last_level_beaten + 1
+        #if self.current_level == 0 and self.previous_level != 0:
+            #if p1_lives == 0 and p2_lives == 0: self.previous_level = 0
+            #else: self.current_level = self.previous_level
+        #level_difference = self.current_level - self.previous_level
+        #if level_difference < 0: self.current_level = last_level_beaten + 1
 
         #this sets starting lives
         self.starting_lives_should_be = self.ids_received.count(2) + 3

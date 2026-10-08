@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Options import OptionGroup, PerGameCommonOptions, Range, Toggle
+from Options import OptionGroup, PerGameCommonOptions, Range, Toggle, DeathLink
 
 class SuperLevels(Toggle):
     """
@@ -56,11 +56,11 @@ class TimerTrapChance(Range):
     range_end = 100
     default = 20
 
-class DeathLink(Toggle):
-    """
-    When you die, everyone who enabled death link dies.  Of course, the reverse is true, too.
-    """
-    display_name = "Death Link"
+#class DeathLink(Toggle):
+#    """
+#    When you die, everyone who enabled death link dies.  Of course, the reverse is true, too.
+#    """
+#    display_name = "Death Link"
 
 class DeathLinkTrigger(Toggle):
     """
