@@ -204,12 +204,6 @@ class BubbleBobbleClient(BizHawkClient):
         self.transition = int.from_bytes(read_data[18])
         #this is set to 2 for level transitions
 
-        #if self.current_level == 0 and self.previous_level != 0:
-            #if p1_lives == 0 and p2_lives == 0: self.previous_level = 0
-            #else: self.current_level = self.previous_level
-        #level_difference = self.current_level - self.previous_level
-        #if level_difference < 0: self.current_level = last_level_beaten + 1
-
         #this sets starting lives
         self.starting_lives_should_be = self.ids_received.count(2) + 3
         self.writes.append((0x01D0, self.starting_lives_should_be.to_bytes(1), "RAM"))
