@@ -20,6 +20,15 @@ password_selector_addresses = [ 0x0502, 0x0503, 0x0504, 0x0505, 0x0506 ]
 if TYPE_CHECKING:
     from worlds._bizhawk.context import BizHawkClientContext, BizHawkClientCommandProcessor
 
+separate_supers = False
+lock_supers = False
+lock_2p = False
+require_best = False
+deathlink = False
+deathlinktrigger = False
+deathlinkresult = False
+
+
 @mark_raw
 def cmd_find_password(self: 'BizHawkClientCommandProcessor', checklevel: str = ""):
     """Locates an available valid password for a level."""
@@ -145,6 +154,9 @@ class BubbleBobbleClient(BizHawkClient):
         if cmd == "Bounced" and self.deathlink and "tags" in args and "DeathLink" in args["tags"] and args["data"]["source"] != ctx.slot_info[ctx.slot].name: self.death_received = True
 
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
+        if ctx.server is None or ctx.server.socket.closed or ctx.slot_data is None or ctx.auth is None:
+            self.initClient = False
+            return
 
         self.compile_ids(ctx)
         self.traps_received = self.ids_received.count(1)
