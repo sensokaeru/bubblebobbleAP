@@ -20,15 +20,6 @@ password_selector_addresses = [ 0x0502, 0x0503, 0x0504, 0x0505, 0x0506 ]
 if TYPE_CHECKING:
     from worlds._bizhawk.context import BizHawkClientContext, BizHawkClientCommandProcessor
 
-separate_supers = False
-lock_supers = False
-lock_2p = False
-require_best = False
-deathlink = False
-deathlinktrigger = False
-deathlinkresult = False
-
-
 @mark_raw
 def cmd_find_password(self: 'BizHawkClientCommandProcessor', checklevel: str = ""):
     """Locates an available valid password for a level."""
@@ -90,6 +81,14 @@ class BubbleBobbleClient(BizHawkClient):
     game = "Bubble Bobble"
     system = "NES"
     patch_suffix = ".apbubbob"
+
+    separate_supers = False
+    lock_supers = False
+    lock_2p = False
+    require_best = False
+    deathlink = False
+    deathlinktrigger = False
+    deathlinkresult = False
 
     def __init__(self):
         super().__init__()
