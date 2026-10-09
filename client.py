@@ -113,7 +113,6 @@ class BubbleBobbleClient(BizHawkClient):
                 ctx.command_processor.commands["find_password"] = cmd_find_password
                 ctx.command_processor.commands["find_level"] = cmd_find_password
                 ctx.command_processor.commands["toggle_deathlink"] = cmd_toggle_deathlink
-                self.initialize = True
                 return True
             else: return False
         except: return False
@@ -132,7 +131,7 @@ class BubbleBobbleClient(BizHawkClient):
             self.deathlink = bool(slotdata['deathlink'])
             self.deathlinktrigger = bool(slotdata['deathlinktrigger'])
             self.deathlinkresult = bool(slotdata['deathlinkresult'])
-            if "DeathLink" not in ctx.tags:
+            if self.deathlink and "DeathLink" not in ctx.tags:
                 ctx.tags.add("DeathLink")
             self.slot = args["slot"]
 
