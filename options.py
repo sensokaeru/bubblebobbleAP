@@ -34,33 +34,39 @@ class EndingReq(Toggle):
 
     display_name = "Require Best Ending"
 
-class IncreaseLivesCount(Range):
+class IncreaseLivesWeight(Range):
     """
+    Weighted chance that a filler item is replaced with an Increase Starting Lives item.
     The starting lives is set to 3 by default.
     Each Increase Starting Lives item increases the starting lives by 1.
     Note: Lives over 10 cause a minor graphical bug that does not seem to affect gameplay.
     """
 
-    display_name = "Increase Starting Lives Count"
+    display_name = "Increase Starting Lives Weight"
     range_start = 0
-    range_end = 17
+    range_end = 100
     default = 5
 
-class TimerTrapChance(Range):
+class TimerTrapWeight(Range):
     """
-    Percentage chance that a filler item is a Timer Trap.
+    Weighted chance that a filler item is replaced with a Timer Trap.
     """
 
-    display_name = "Timer Trap Chance"
+    display_name = "Timer Trap Weight"
     range_start = 0
     range_end = 100
     default = 20
 
-#class DeathLink(Toggle):
-#    """
-#    When you die, everyone who enabled death link dies.  Of course, the reverse is true, too.
-#    """
-#    display_name = "Death Link"
+class FillerWeight(Range):
+    """
+    Weighted chance that a filler item will be a popped bubble, which does nothing.
+    Note: If the combined value of the three weighted options is 0, every filler item will become a popped bubble.
+    """
+
+    display_name = "Filler Weight"
+    range_start = 0
+    range_end = 100
+    default = 40
 
 class DeathLinkTrigger(Toggle):
     """
@@ -85,8 +91,9 @@ class BubbleBobbleOptions(PerGameCommonOptions):
     lock_super_bubble_bobble_levels: LockSupers
     lock_two_player_mode: LockTwoPlayer
     require_best_ending: EndingReq
-    increase_starting_lives_count: IncreaseLivesCount
-    timer_trap_chance: TimerTrapChance
+    increase_starting_lives_weight: IncreaseLivesWeight
+    timer_trap_weight: TimerTrapWeight
+    filler_weight: FillerWeight
     deathlink: DeathLink
     deathlinktrigger: DeathLinkTrigger
     deathlinkresult: DeathLinkResult
@@ -97,8 +104,12 @@ option_groups = [
         [SuperLevels, LockSupers, LockTwoPlayer, EndingReq],
     ),
     OptionGroup(
-        "Trap and Other Options",
-        [IncreaseLivesCount, TimerTrapChance, DeathLink, DeathLinkTrigger, DeathLinkResult]
+        "Filler Options",
+        [IncreaseLivesWeight, TimerTrapWeight, FillerWeight]
+    ),
+    OptionGroup(
+        "Death Link Options",
+        [DeathLink, DeathLinkTrigger, DeathLinkResult]
     )
 ]
 
@@ -108,8 +119,9 @@ option_presets = {
         "lock_super_bubble_bobble_levels": False,
         "lock_two_player_mode": False,
         "require_best_ending": False,
-        "increase_starting_lives_count": 17,
-        "timer_trap_chance": 0,
+        "increase_starting_lives_weight": 20,
+        "timer_trap_weight": 0,
+        "filler_weight": 30,
         "deathlink": False,
         "deathlinktrigger": False,
         "deathlinkresult": False,
@@ -119,8 +131,9 @@ option_presets = {
         "lock_super_bubble_bobble_levels": True,
         "lock_two_player_mode": True,
         "require_best_ending": True,
-        "increase_starting_lives_count": 0,
-        "timer_trap_chance": 100,
+        "increase_starting_lives_weight": 0,
+        "timer_trap_weight": 100,
+        "filler_weight": 0,
         "deathlink": True,
         "deathlinktrigger": True,
         "deathlinkresult": True,
@@ -130,8 +143,9 @@ option_presets = {
         "lock_super_bubble_bobble_levels": False,
         "lock_two_player_mode": False,
         "require_best_ending": True,
-        "increase_starting_lives_count": 7,
-        "timer_trap_chance": 20,
+        "increase_starting_lives_weight": 7,
+        "timer_trap_weight": 20,
+        "filler_weight": 30,
         "deathlink": True,
         "deathlinktrigger": False,
         "deathlinkresult": False,

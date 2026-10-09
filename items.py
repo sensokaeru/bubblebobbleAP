@@ -146,10 +146,18 @@ class BubbleBobbleItem(Item):
     game = "Bubble Bobble"
 
 def get_random_filler_item_name(world: BubbleBobbleWorld) -> str:
-    if world.random.randint(0,99) < world.options.timer_trap_chance:
-        return "Timer Trap"
+    total_filler_weight = world.options.increase_starting_lives_weight + world.options.timer_trap_weight + world.options.filler_weight
+    if total_filler_weight == 0: return "a popped bubble"
     else:
-        return "a popped bubble"
+        random_filler = world.random.randint(0,total_filler_weight)
+        if random_filler < world.options.increase_starting_lives_weight: return "Increase Starting Lives"
+        elif random_filler < world.options.increase_starting_lives_weight + world.options.timer_trap_weight: return "Timer Trap"
+        else: return "a popped bubble"
+
+    #if world.random.randint(0,99) < world.options.timer_trap_chance:
+        #return "Timer Trap"
+    #else:
+        #return "a popped bubble"
         
         #when more filler items are added, add something to randomize them
 
@@ -258,9 +266,9 @@ def create_all_items(world: BubbleBobbleWorld) -> None:
         itempool.append(world.create_item("Super Bubble Bobble"))
     if world.options.lock_two_player_mode:
         itempool.append(world.create_item("Two Player Mode"))
-    if world.options.increase_starting_lives_count > 0:
-        for lives in range(world.options.increase_starting_lives_count):
-            itempool.append(world.create_item("Increase Starting Lives"))
+    #if world.options.increase_starting_lives_count > 0:
+        #for lives in range(world.options.increase_starting_lives_count):
+            #itempool.append(world.create_item("Increase Starting Lives"))
 
     number_of_items = len(itempool)
     number_of_unfilled_locations = len(world.multiworld.get_unfilled_locations(world.player))
