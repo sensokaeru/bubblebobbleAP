@@ -82,6 +82,14 @@ class BubbleBobbleClient(BizHawkClient):
     system = "NES"
     patch_suffix = ".apbubbob"
 
+    separate_supers = False
+    lock_supers = False
+    lock_2p = False
+    require_best = False
+    deathlink = False
+    deathlinktrigger = False
+    deathlinkresult = False
+
     def __init__(self):
         super().__init__()
 
@@ -144,6 +152,9 @@ class BubbleBobbleClient(BizHawkClient):
         if cmd == "Bounced" and self.deathlink and "tags" in args and "DeathLink" in args["tags"] and args["data"]["source"] != ctx.slot_info[ctx.slot].name: self.death_received = True
 
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
+        if ctx.server is None or ctx.server.socket.closed or ctx.slot_data is None or ctx.auth is None:
+            self.initClient = False
+            return
 
         self.compile_ids(ctx)
         self.traps_received = self.ids_received.count(1)
