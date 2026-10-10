@@ -28,6 +28,7 @@
 ## Notes about the password locking system
 
 - The vanilla game gives you exactly one password per level, but in actuality, every level has several passwords that work.  Every password that works in the AP will also work in the vanilla game.
+- By default, a Super Bubble Bobble level is the same check as a regular level.  Super Bubble Bobble levels can be made into separate checks by enabling the Separate Super Bubble Bobble option in the yaml.
 - Use the /find_level command in the client to find a valid password that you can currently use.
 - If you enter a level and immediately game over, that means you don't have a password you can use for that level right now.
 - It is ***highly*** recommended that you use this in conjunction with Universal Tracker to know what levels you should be able to go to.  In fact, this might be relatively unplayable without it.
