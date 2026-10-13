@@ -214,11 +214,15 @@ class BubbleBobbleClient(BizHawkClient):
                 if self.player1_state == 128 and self.player1_dying == False:
                     self.player1_dying = True
                     if self.deathlinktrigger: await ctx.send_death("Bub\'s bubble popped.")
-                    elif p1_lives == 1 and (p2_lives == 0 or (p2_lives == 1 and self.player2_state == 128)): await ctx.send_death("Bub ran out of lives.")
+                    elif p1_lives == 1 and (p2_lives == 0 or (p2_lives == 1 and self.player2_state == 128)):
+                        self.player2_dying = True
+                        await ctx.send_death("Bub ran out of lives.")
                 if self.player2_state == 128 and self.player2_dying == False:
                     self.player2_dying = True
                     if self.deathlinktrigger: await ctx.send_death("Bob\'s bubble popped.")
-                    elif p2_lives == 1 and (p1_lives == 0 or (p1_lives == 1 and self.player1_state == 128)): await ctx.send_death("Bob ran out of lives.")
+                    elif p2_lives == 1 and (p1_lives == 0 or (p1_lives == 1 and self.player1_state == 128)):
+                        self.player1_dying = True
+                        await ctx.send_death("Bob ran out of lives.")
                 try:
                     if self.death_received:
                         self.death_received = False
@@ -297,7 +301,7 @@ class BubbleBobbleClient(BizHawkClient):
                     except: await ctx.send_msgs([{"cmd": "Get", "keys": ["bubbobtraps_applied"]}])
 
             #this part kills you if you're in a level that you're not supposed to be in
-            elif not check:
+            elif self.transition != 2 and game_state != 128 and not check:
                 self.kill_p1 = True
                 self.kill_p2 = True
                 self.reset_level = True
