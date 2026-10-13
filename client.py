@@ -1,6 +1,5 @@
 import logging
 from typing import TYPE_CHECKING
-import json
 
 from NetUtils import ClientStatus
 from MultiServer import mark_raw
@@ -54,8 +53,6 @@ def cmd_toggle_deathlink(self: 'BizHawkClientCommandProcessor'):
         logger.info('Deathlink disabled')
     else:
         client.deathlink = True
-        if "DeathLink" not in ctx.tags:
-            ctx.tags.add("DeathLink")
         logger.info('Deathlink enabled')
 
 def levelcheck(ids: list, level: int, purpose: int, superlevel: bool, separate: bool):
@@ -121,6 +118,7 @@ class BubbleBobbleClient(BizHawkClient):
                 ctx.command_processor.commands["find_password"] = cmd_find_password
                 ctx.command_processor.commands["find_level"] = cmd_find_password
                 ctx.command_processor.commands["toggle_deathlink"] = cmd_toggle_deathlink
+                await ctx.update_death_link(True)
                 return True
             else: return False
         except: return False
@@ -139,8 +137,6 @@ class BubbleBobbleClient(BizHawkClient):
             self.deathlink = bool(slotdata['deathlink'])
             self.deathlinktrigger = bool(slotdata['deathlinktrigger'])
             self.deathlinkresult = bool(slotdata['deathlinkresult'])
-            if self.deathlink and "DeathLink" not in ctx.tags:
-                ctx.tags.add("DeathLink")
             self.slot = args["slot"]
 
         if cmd == "Retrieved":
@@ -198,7 +194,7 @@ class BubbleBobbleClient(BizHawkClient):
         self.boss_check_1 = int.from_bytes(read_data[15])
         self.boss_check_2 = int.from_bytes(read_data[16])
         self.boss_hp = int.from_bytes(read_data[17])
-        if self.boss_check_1 == 102 and self.boss_check_2 == 4 and (self.current_level == 99 or self.current_level >= 112): self.boss_fight = True
+        if self.boss_check_1 == 102 and self.boss_check_2 == 4 and (self.current_level == 99 or self.current_level == 100 or self.current_level >= 112): self.boss_fight = True
         else: self.boss_fight = False
         
         self.transition = int.from_bytes(read_data[18])
