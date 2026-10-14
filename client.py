@@ -26,8 +26,8 @@ def cmd_find_password(self: 'BizHawkClientCommandProcessor', checklevel: str = "
     client = ctx.client_handler
     separate = client.separate_supers | client.lock_supers
     try:
+        text = checklevel.title()
         for x in range(len(levels.database)):
-            text = checklevel.title()
             if text == levels.database[x].lev:
                 check = x + 1
                 superlevel = False
@@ -57,12 +57,11 @@ def cmd_toggle_deathlink(self: 'BizHawkClientCommandProcessor'):
 
 def levelcheck(ids: list, level: int, purpose: int, superlevel: bool, separate: bool):
     #purpose is 0 for checking levels for active gameplay or 1 for returning a valid password
-
     check = level - 1
     if separate:
         if superlevel: passwords = levels.database[check].supers
         else: passwords = levels.database[check].passwords
-    else: passwords = levels.database[check].supers + levels.database[check].passwords
+    else: passwords = levels.database[check].passwords + levels.database[check].supers
     for password in passwords:
         has_letter = []
         for letter in password:
@@ -157,12 +156,7 @@ class BubbleBobbleClient(BizHawkClient):
         self.writes = []
         self.kill_p1 = False
         self.kill_p2 = False
-        self.reset_level = False
-
-        try:
-            self.previous_enemy_count = self.current_enemy_count
-        except:
-            self.previous_enemy_count = 0
+        #self.reset_level = False
 
         try:
             self.previous_level = self.current_level
@@ -170,9 +164,9 @@ class BubbleBobbleClient(BizHawkClient):
             self.previous_level = 0
             
         #REMEMBER THAT THIS IS A LIST OF BYTES
-        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0x046C, 1, "RAM"), (0x0327, 1, "RAM"), (0x032C, 1, "RAM"), (0x006F, 1, "RAM"), (0x0400, 1, "RAM"), (0x04CE, 1, "RAM"), (0x0038, 6, "RAM"), (0x01D3, 1, "RAM"), (0x00DC, 1, "RAM"), (0x0045, 1, "RAM"), (0x0030, 1, "RAM")])
+        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x01d4, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0x046C, 1, "RAM"), (0x0327, 1, "RAM"), (0x032C, 1, "RAM"), (0x006F, 1, "RAM"), (0x0400, 1, "RAM"), (0x04CE, 1, "RAM"), (0x0038, 6, "RAM"), (0x01D3, 1, "RAM"), (0x00DC, 1, "RAM"), (0x0045, 1, "RAM"), (0x0030, 1, "RAM")])
 
-        #self.current_level = int.from_bytes(read_data[0])
+        self.current_level = int.from_bytes(read_data[0])
         p1_lives = int.from_bytes(read_data[1])
         p2_lives = int.from_bytes(read_data[2])
         self.current_enemy_count = int.from_bytes(read_data[3])
@@ -182,7 +176,6 @@ class BubbleBobbleClient(BizHawkClient):
         game_state = int.from_bytes(read_data[13])
         score_check = int.from_bytes(read_data[20])
         last_level_beaten = int.from_bytes(read_data[21])
-        self.current_level = last_level_beaten + 1
         completion_check = int.from_bytes(read_data[22])
 
         #this part hopefully identifies super levels
@@ -229,7 +222,7 @@ class BubbleBobbleClient(BizHawkClient):
                         if self.deathlinkresult:
                             self.kill_p1 = True
                             self.kill_p2 = True
-                            self.reset_level = True
+                            #self.reset_level = True
                         else:
                             self.player1_dying = True
                             self.player2_dying = True
@@ -253,10 +246,6 @@ class BubbleBobbleClient(BizHawkClient):
                     self.locations_sent.append(last_level_beaten)
             except: self.locations_sent = []
 
-        if game_state == 255:
-            self.previous_level = 0
-            self.current_level = 0
-
         #hopefully this checks and sends completion
         if completion_check == 4 or completion_check == 32 or completion_check == 31 or (completion_check == 29 and not self.require_best):
             await ctx.send_msgs([{
@@ -264,7 +253,7 @@ class BubbleBobbleClient(BizHawkClient):
                 "status": ClientStatus.CLIENT_GOAL
             }])
 
-        if self.current_level > 0 and (p1_lives > 0 or p2_lives > 0):
+        if self.current_level > 0 and (p1_lives > 0 or p2_lives > 0) and game_state != 255 and game_state != 128:
             separate = self.separate_supers | self.lock_supers
             if self.boss_fight:
                 check99 = levelcheck(self.ids_received, 99, 0, self.super_level, separate)
@@ -272,7 +261,8 @@ class BubbleBobbleClient(BizHawkClient):
                 check = check99 | checkB2
                 if 5 not in self.ids_received:
                     if self.boss_hp < 55: self.writes.append((0x006F, b'\x3c', "RAM"))
-            else: check = levelcheck(self.ids_received, self.current_level, 0, self.super_level, separate)
+            else:
+                check = levelcheck(self.ids_received, self.current_level, 0, self.super_level, separate)
 
             if check:
 
@@ -283,7 +273,7 @@ class BubbleBobbleClient(BizHawkClient):
                 if self.super_level and self.lock_supers and 9 not in self.ids_received: 
                     self.kill_p1 = True
                     self.kill_p2 = True
-                    self.reset_level = True
+                    #self.reset_level = True
 
                 #this part checks for traps
                 elif self.current_enemy_count > 0 and not self.boss_fight:
@@ -301,10 +291,10 @@ class BubbleBobbleClient(BizHawkClient):
                     except: await ctx.send_msgs([{"cmd": "Get", "keys": ["bubbobtraps_applied"]}])
 
             #this part kills you if you're in a level that you're not supposed to be in
-            elif self.transition != 2 and game_state != 128 and not check:
+            elif self.transition != 2 and not check:
                 self.kill_p1 = True
                 self.kill_p2 = True
-                self.reset_level = True
+                #self.reset_level = True
 
         #this part changes the current selected letter if you have a letter selected that you're not allowed to use yet
         elif current_menu_selection == 4 and current_letter_position < 5:
@@ -334,6 +324,7 @@ class BubbleBobbleClient(BizHawkClient):
                     self.writes.append((password_address, [check_selected_letter_id], "RAM"))
             except: self.compile_ids(ctx)
 
+        #this handles elements locking
         self.current_elements = int.from_bytes(read_data[19])
         self.elements_unlocked = 17
         if 6 in self.ids_received: self.elements_unlocked += 34
@@ -342,13 +333,16 @@ class BubbleBobbleClient(BizHawkClient):
         self.current_elements &= self.elements_unlocked
         self.writes.append((0x04CE, self.current_elements.to_bytes(1), "RAM"))
 
+        #this handles powerup locking, including the drug of thunder
         self.current_powerups = int.from_bytes(read_data[24])
         self.powerups_unlocked = 56
         if not self.boss_fight:
             if 61 in self.ids_received: self.powerups_unlocked += 1
             if 62 in self.ids_received: self.powerups_unlocked += 2
             if 63 in self.ids_received: self.powerups_unlocked += 4
-        elif 7 in self.ids_received: self.powerups_unlocked += 71
+        elif 7 in self.ids_received:
+            self.powerups_unlocked += 7
+            if 5 in self.ids_received: self.powerups_unlocked += 64
         self.current_powerups &= self.powerups_unlocked
         self.writes.append((0x0030, self.current_powerups.to_bytes(1), "RAM"))
 
@@ -357,6 +351,8 @@ class BubbleBobbleClient(BizHawkClient):
         
         if self.kill_p1: self.writes.append((0x002E, b'\x00', "RAM"))
         if self.kill_p2: self.writes.append((0x0042, b'\x00', "RAM"))
-        if self.reset_level: self.writes.append((0x0401, b'\x00', "RAM"))
+        #if self.reset_level:
+            #self.writes.append((0x0401, b'\x00', "RAM"))
+            #self.current_level = 0
 
         await bizhawk.write(ctx.bizhawk_ctx, self.writes)
