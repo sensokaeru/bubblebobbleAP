@@ -22,7 +22,7 @@
 ## Known issues
 
 - Bubble Bounce is locked until you find the item to unlock it, but even when it is locked, you can still bounce if you press the jump button with good timing.  You won't bounce if you're holding down the jump button to do so.  I have no idea what is causing this issue.
-- ~In the previous version, there was a bug that would force a game over even when loading a level, even though you should be able to access it.  Code was modified to fix this, but it has not been thoroughly tested yet.~ Issue appears fixed
+- ~In the previous version, there was a bug that would force a game over even when loading a level, even though you should be able to access it.  Code was modified to fix this, but it has not been thoroughly tested yet.~ Issue appears fixed.
 - ~Death Links send, but receiving them was not working in the previous version.  I've applied a fix, but not yet tested it.~ Deathlinks seem to work in full, even with two players.
 
 ## Notes about the password locking system
