@@ -1,5 +1,6 @@
 import logging
 from typing import TYPE_CHECKING
+import tkinter as tk
 
 from NetUtils import ClientStatus
 from MultiServer import mark_raw
@@ -9,8 +10,7 @@ from worlds._bizhawk.client import BizHawkClient
 
 logger = logging.getLogger("Client")
 
-from . import levels
-#call levels data as levels.database
+from .levels import database
 from .items import ITEM_NAME_TO_ID
 from .rom import PlayerNameAddress, APidentifierAddress
 
@@ -27,12 +27,12 @@ def cmd_find_password(self: 'BizHawkClientCommandProcessor', checklevel: str = "
     separate = client.separate_supers | client.lock_supers
     try:
         text = checklevel.title()
-        for x in range(len(levels.database)):
-            if text == levels.database[x].lev:
+        for x in range(len(database)):
+            if text == database[x].lev:
                 check = x + 1
                 superlevel = False
                 break
-            if text == levels.database[x].sup:
+            if text == database[x].sup:
                 check = x + 1
                 superlevel = True
                 break
@@ -59,9 +59,9 @@ def levelcheck(ids: list, level: int, purpose: int, superlevel: bool, separate: 
     #purpose is 0 for checking levels for active gameplay or 1 for returning a valid password
     check = level - 1
     if separate:
-        if superlevel: passwords = levels.database[check].supers
-        else: passwords = levels.database[check].passwords
-    else: passwords = levels.database[check].passwords + levels.database[check].supers
+        if superlevel: passwords = database[check].supers
+        else: passwords = database[check].passwords
+    else: passwords = database[check].passwords + database[check].supers
     for password in passwords:
         has_letter = []
         for letter in password:
@@ -94,9 +94,95 @@ class BubbleBobbleClient(BizHawkClient):
         for items in ctx.items_received:
             self.ids_received.append(int(items[0]))
 
+    def levelselector(self, ctx: "BizHawkClientContext"):
+        if ctx.server is None or ctx.server.socket.closed or ctx.slot_data is None or ctx.auth is None:
+            if root is not None: root.destroy()
+            return
+        root = tk.Tk()
+        root.title("Bubble Bobble Password Selector")
+        tabControl = tk.ttk.Notebook(root)
+        leveltab = tk.ttk.Frame(tabControl)
+        tabControl.add(leveltab, text="Levels")
+        if self.separate_supers:
+            supertab = tk.ttk.Frame(tabControl)
+            tabControl.add(supertab, text="Super Levels")
+        tabControl.pack(expand=1, fill ="both")
+
+        if not self.separate_supers:
+            if not self.lock_supers:
+                for x in range(len(database)):
+                    level = x + 1
+                    buttonname = database[x].lev
+                    buttonname = buttonname.lower()
+                    buttonname = buttonname[0:5] + buttonname[6:]
+                    exec(f'{buttonname} = tk.Button(leveltab, text=database[x].lev, command=levelcheck(self.ids_received, level, 1, False, False))')
+            else:
+                for x in range(len(database)):
+                    level = x + 1
+                    buttonname = database[x].lev
+                    buttonname = buttonname.lower()
+                    buttonname = buttonname[0:5] + buttonname[6:]
+                    if 9 in self.ids_received:
+                        exec(f'{buttonname} = tk.Button(leveltab, text=database[x].lev, command=levelcheck(self.ids_received, level, 1, False, False))')
+                    else:
+                        exec(f'{buttonname} = tk.Button(leveltab, text=database[x].lev, command=levelcheck(self.ids_received, level, 1, False, True))')
+
+        else:
+            for x in range(len(database)):
+                level = x + 1
+                buttonname = database[x].lev
+                buttonname = buttonname.lower()
+                buttonname = buttonname[0:5] + buttonname[6:]
+                exec(f'{buttonname} = tk.Button(leveltab, text=database[x].lev, command=levelcheck(self.ids_received, level, 1, False, True))')
+                supername = database[x].sup
+                supername = supername.lower()
+                supername = supername[0:5] + supername[6:]
+                exec(f'{supername} = tk.Button(supertab, text=database[x].sup, command=levelcheck(self.ids_received, level, 1, True, True))')
+            supertab.pack(expand=1, fill="both")
+        leveltab.pack(expand=1, fill="both")
+
+        try:
+            if not self.separate_supers and len(self.enabledbuttons) < 112:
+                for x in range(len(database)):
+                    if database[x].lev not in self.enabledbuttons:
+                        level = x + 1
+                        buttonname = database[x].lev
+                        buttonname = buttonname.lower()
+                        buttonname = buttonname[0:5] + buttonname[6:]
+                        if (not self.lock_supers or 9 in self.ids_received) and levelcheck(self.ids_received, level, 0, False, False):
+                            self.enabledbuttons.append(database[x].lev)
+                            exec(f'{buttonname}.config(state=tk.NORMAL)')
+                        elif levelcheck(self.ids_received, level, 0, False, True):
+                            self.enabledbuttons.append(database[x].lev)
+                            exec(f'{buttonname}.config(state=tk.NORMAL)')
+                        else: exec(f'{buttonname}.config(state=tk.DISABLED)')
+            elif self.separate_supers and len(self.enabledbuttons) < 224:
+                for x in range(len(database)):
+                    if database[x].lev not in self.enabledbuttons:
+                        level = x + 1
+                        buttonname = database[x].lev
+                        buttonname = buttonname.lower()
+                        buttonname = buttonname[0:5] + buttonname[6:]
+                        if levelcheck(self.ids_received, level, 0, False, True):
+                            self.enabledbuttons.append(database[x].lev)
+                            exec(f'{buttonname}.config(state=tk.NORMAL)')
+                        else: exec(f'{buttonname}.config(state=tk.DISABLED)')
+                    if database[x].sup not in self.enabledbuttons:
+                        buttonname = database[x].sup
+                        buttonname = buttonname.lower()
+                        buttonname = buttonname[0:5] + buttonname[6:]
+                        if (not self.lock_supers or 9 in self.ids_received) and levelcheck(self.ids_received, level, 0, True, True):
+                            self.enabledbuttons.append(database[x].sup)
+                            exec(f'{buttonname}.config(state=tk.NORMAL)')
+                        else: exec(f'{buttonname}.config(state=tk.DISABLED)')
+        except:
+            self.enabledbuttons = list()
+
+        root.mainloop()
+
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         rom_system = await bizhawk.get_system(ctx.bizhawk_ctx)
-        rom_identifier = await bizhawk.read(ctx.bizhawk_ctx,[(APidentifierAddress - 0x10, 0x8, "PRG ROM")])
+        rom_identifier = await bizhawk.read(ctx.bizhawk_ctx,[(APidentifierAddress - 0x10, 0xb, "PRG ROM")])
         rom_identifier = rom_identifier[0]
         rom_identifier = rom_identifier.decode("ascii")
         rom_player_name = await bizhawk.read(ctx.bizhawk_ctx,[(PlayerNameAddress - 0x10, 0x20, "PRG ROM")])
@@ -104,7 +190,8 @@ class BubbleBobbleClient(BizHawkClient):
         self.rom_slot_name = rom_player_name
 
         try:
-            if rom_system == "NES" and rom_identifier == "BUBBOBAP":
+            if rom_system == "NES" and rom_identifier == "BUBBOBAP123":
+                #UPDATE THE IDENTIFIER CHECK EVERY NEW VERSION
                 await bizhawk.write(ctx.bizhawk_ctx, [(0x0402, b'\x00', "RAM")])
                 ctx.game = self.game
                 ctx.items_handling = 0b111
@@ -119,6 +206,9 @@ class BubbleBobbleClient(BizHawkClient):
                 ctx.command_processor.commands["toggle_deathlink"] = cmd_toggle_deathlink
                 await ctx.update_death_link(True)
                 return True
+            elif rom_system == "NES" and rom_identifier[:8] == "BUBBOBAP":
+                logger.info('Bubble Bobble AP ROM detected, but wrong version.  Installed apworld is version 1.2.3.')
+                return False
             else: return False
         except: return False
 
@@ -163,7 +253,7 @@ class BubbleBobbleClient(BizHawkClient):
             self.previous_level = 0
             
         #REMEMBER THAT THIS IS A LIST OF BYTES
-        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0x046C, 1, "RAM"), (0x0327, 1, "RAM"), (0x032C, 1, "RAM"), (0x006F, 1, "RAM"), (0x0400, 1, "RAM"), (0x04CE, 1, "RAM"), (0x0038, 6, "RAM"), (0x01D3, 1, "RAM"), (0x00DC, 1, "RAM"), (0x0045, 1, "RAM"), (0x0030, 1, "RAM")])
+        read_data = await bizhawk.read(ctx.bizhawk_ctx,[(0x0401, 1, "RAM"), (0x002E, 1, "RAM"), (0x0042, 1, "RAM"), (0x0496, 1, "RAM"), (0x0502, 1, "RAM"), (0x0503, 1, "RAM"), (0x0504, 1, "RAM"), (0x0505, 1, "RAM"), (0x0506, 1, "RAM"), (0x0402, 1, "RAM"), (0x050A, 1, "RAM"), (0x040D, 1, "RAM"), (0x0031, 1, "RAM"), (0x0084, 1, "RAM"), (0x046C, 1, "RAM"), (0x0327, 1, "RAM"), (0x032C, 1, "RAM"), (0x006F, 1, "RAM"), (0x0400, 1, "RAM"), (0x04CE, 1, "RAM"), (0x0038, 6, "RAM"), (0x01D3, 1, "RAM"), (0x00DC, 1, "RAM"), (0x0045, 1, "RAM"), (0x0030, 1, "RAM"), (0x0044, 1, "RAM")])
 
         self.current_level = int.from_bytes(read_data[0])
         p1_lives = int.from_bytes(read_data[1])
@@ -235,7 +325,7 @@ class BubbleBobbleClient(BizHawkClient):
                 except: self.death_received = False
         except: self.deathlink = False
 
-        #this part checks for level completion and sends a check hopefully
+        #this part checks for level completion and sends a check
         if last_level_beaten > 0 and score_check > 0 and (self.transition == 2 or self.boss_fight):
             if self.boss_fight and (last_level_beaten == 98 or last_level_beaten == 111): last_level_beaten += 1
             last_level_beaten += 1000
@@ -250,7 +340,7 @@ class BubbleBobbleClient(BizHawkClient):
                     self.locations_sent.append(last_level_beaten)
             except: self.locations_sent = []
 
-        #hopefully this checks and sends completion
+        #this checks and sends completion
         if completion_check == 4 or completion_check == 32 or completion_check == 31 or (completion_check == 29 and not self.require_best):
             await ctx.send_msgs([{
                 "cmd": "StatusUpdate",
@@ -274,7 +364,7 @@ class BubbleBobbleClient(BizHawkClient):
                 if self.lock_2p and 8 not in self.ids_received and p2_lives > 0: self.kill_p2 = True
 
                 #this part hopefully kills you if you're in a super level and not supposed to be
-                if self.super_level and self.lock_supers and 9 not in self.ids_received: 
+                if self.super_level and self.lock_supers and 9 not in self.ids_received:
                     self.kill_p1 = True
                     self.kill_p2 = True
 
@@ -336,7 +426,8 @@ class BubbleBobbleClient(BizHawkClient):
         self.writes.append((0x04CE, self.current_elements.to_bytes(1), "RAM"))
 
         #this handles powerup locking, including the drug of thunder
-        self.current_powerups = int.from_bytes(read_data[24])
+        self.current_powerups_p1 = int.from_bytes(read_data[24])
+        self.current_powerups_p2 = int.from_bytes(read_data[25])
         self.powerups_unlocked = 56
         if not self.boss_fight:
             if 61 in self.ids_received: self.powerups_unlocked += 1
@@ -345,8 +436,10 @@ class BubbleBobbleClient(BizHawkClient):
         elif 7 in self.ids_received:
             self.powerups_unlocked += 7
             if 5 in self.ids_received: self.powerups_unlocked += 64
-        self.current_powerups &= self.powerups_unlocked
-        self.writes.append((0x0030, self.current_powerups.to_bytes(1), "RAM"))
+        self.current_powerups_p1 &= self.powerups_unlocked
+        self.current_powerups_p2 &= self.powerups_unlocked
+        self.writes.append((0x0030, self.current_powerups_p1.to_bytes(1), "RAM"))
+        self.writes.append((0x0030, self.current_powerups_p2.to_bytes(1), "RAM"))
 
         if 3 in self.ids_received: self.writes.append((0x01D1, b'\x01', "RAM"))
         else: self.writes.append((0x01D1, b'\x00', "RAM"))
