@@ -1,9 +1,10 @@
 import logging
 from typing import TYPE_CHECKING
-import tkinter as tk
 
 from NetUtils import ClientStatus
 from MultiServer import mark_raw
+import tkinter as tk
+from tkinter import ttk
 
 import worlds._bizhawk as bizhawk
 from worlds._bizhawk.client import BizHawkClient
@@ -73,6 +74,94 @@ def levelcheck(ids: list, level: int, purpose: int, superlevel: bool, separate: 
                     return has_letter
     return False
 
+def levelselector(client, ctx: "BizHawkClientContext"):
+    try:
+        if ctx.server is None or ctx.server.socket.closed or ctx.slot_data is None or ctx.auth is None:
+            if root is not None: root.destroy()
+            return
+        root = tk.Tk("500x500")
+        root.geometry
+        root.title("Bubble Bobble Password Selector")
+        tabControl = ttk.Notebook(root)
+        leveltab = ttk.Frame(tabControl)
+        tabControl.add(leveltab, text="Levels")
+        if client.separate_supers:
+            supertab = ttk.Frame(tabControl)
+            tabControl.add(supertab, text="Super Levels")
+        tabControl.pack(expand=1, fill ="both")
+
+        if not client.separate_supers:
+            if not client.lock_supers:
+                for x in range(len(database)):
+                    level = x + 1
+                    buttonname = database[x].lev
+                    buttonname = buttonname.lower()
+                    buttonname = buttonname[0:5] + buttonname[6:]
+                    exec(f'{buttonname} = tk.Button(leveltab, text=database[x].lev, command=levelcheck(client.ids_received, {level}, 1, False, False))')
+            else:
+                for x in range(len(database)):
+                    level = x + 1
+                    buttonname = database[x].lev
+                    buttonname = buttonname.lower()
+                    buttonname = buttonname[0:5] + buttonname[6:]
+                    if 9 in client.ids_received:
+                        exec(f'{buttonname} = tk.Button(leveltab, text=database[x].lev, command=levelcheck(client.ids_received, {level}, 1, False, False))')
+                    else:
+                        exec(f'{buttonname} = tk.Button(leveltab, text=database[x].lev, command=levelcheck(client.ids_received, {level}, 1, False, True))')
+
+        else:
+            for x in range(len(database)):
+                level = x + 1
+                buttonname = database[x].lev
+                buttonname = buttonname.lower()
+                buttonname = buttonname[0:5] + buttonname[6:]
+                exec(f'{buttonname} = tk.Button(leveltab, text=database[x].lev, command=levelcheck(client.ids_received, {level}, 1, False, True))')
+                supername = database[x].sup
+                supername = supername.lower()
+                supername = supername[0:5] + supername[6:]
+                exec(f'{supername} = tk.Button(supertab, text=database[x].sup, command=levelcheck(client.ids_received, {level}, 1, True, True))')
+            supertab.pack(expand=1, fill="both")
+        leveltab.pack(expand=1, fill="both")
+
+        try:
+            if not client.separate_supers and len(client.enabledbuttons) < 112:
+                for x in range(len(database)):
+                    if database[x].lev not in client.enabledbuttons:
+                        level = x + 1
+                        buttonname = database[x].lev
+                        buttonname = buttonname.lower()
+                        buttonname = buttonname[0:5] + buttonname[6:]
+                        if (not client.lock_supers or 9 in client.ids_received) and levelcheck(client.ids_received, level, 0, False, False):
+                            client.enabledbuttons.append(database[x].lev)
+                            exec(f'{buttonname}.config(state=tk.NORMAL)')
+                        elif levelcheck(client.ids_received, level, 0, False, True):
+                            client.enabledbuttons.append(database[x].lev)
+                            exec(f'{buttonname}.config(state=tk.NORMAL)')
+                        else: exec(f'{buttonname}.config(state=tk.DISABLED)')
+            elif client.separate_supers and len(client.enabledbuttons) < 224:
+                for x in range(len(database)):
+                    if database[x].lev not in client.enabledbuttons:
+                        level = x + 1
+                        buttonname = database[x].lev
+                        buttonname = buttonname.lower()
+                        buttonname = buttonname[0:5] + buttonname[6:]
+                        if levelcheck(client.ids_received, level, 0, False, True):
+                            client.enabledbuttons.append(database[x].lev)
+                            exec(f'{buttonname}.config(state=tk.NORMAL)')
+                        else: exec(f'{buttonname}.config(state=tk.DISABLED)')
+                    if database[x].sup not in client.enabledbuttons:
+                        buttonname = database[x].sup
+                        buttonname = buttonname.lower()
+                        buttonname = buttonname[0:5] + buttonname[6:]
+                        if (not client.lock_supers or 9 in client.ids_received) and levelcheck(client.ids_received, level, 0, True, True):
+                            client.enabledbuttons.append(database[x].sup)
+                            exec(f'{buttonname}.config(state=tk.NORMAL)')
+                        else: exec(f'{buttonname}.config(state=tk.DISABLED)')
+        except:
+            client.enabledbuttons = list()
+        root.mainloop()
+    except: client.compile_ids(ctx)
+
 class BubbleBobbleClient(BizHawkClient):
     game = "Bubble Bobble"
     system = "NES"
@@ -93,92 +182,6 @@ class BubbleBobbleClient(BizHawkClient):
         self.ids_received = []
         for items in ctx.items_received:
             self.ids_received.append(int(items[0]))
-
-    def levelselector(self, ctx: "BizHawkClientContext"):
-        if ctx.server is None or ctx.server.socket.closed or ctx.slot_data is None or ctx.auth is None:
-            if root is not None: root.destroy()
-            return
-        root = tk.Tk()
-        root.title("Bubble Bobble Password Selector")
-        tabControl = tk.ttk.Notebook(root)
-        leveltab = tk.ttk.Frame(tabControl)
-        tabControl.add(leveltab, text="Levels")
-        if self.separate_supers:
-            supertab = tk.ttk.Frame(tabControl)
-            tabControl.add(supertab, text="Super Levels")
-        tabControl.pack(expand=1, fill ="both")
-
-        if not self.separate_supers:
-            if not self.lock_supers:
-                for x in range(len(database)):
-                    level = x + 1
-                    buttonname = database[x].lev
-                    buttonname = buttonname.lower()
-                    buttonname = buttonname[0:5] + buttonname[6:]
-                    exec(f'{buttonname} = tk.Button(leveltab, text=database[x].lev, command=levelcheck(self.ids_received, level, 1, False, False))')
-            else:
-                for x in range(len(database)):
-                    level = x + 1
-                    buttonname = database[x].lev
-                    buttonname = buttonname.lower()
-                    buttonname = buttonname[0:5] + buttonname[6:]
-                    if 9 in self.ids_received:
-                        exec(f'{buttonname} = tk.Button(leveltab, text=database[x].lev, command=levelcheck(self.ids_received, level, 1, False, False))')
-                    else:
-                        exec(f'{buttonname} = tk.Button(leveltab, text=database[x].lev, command=levelcheck(self.ids_received, level, 1, False, True))')
-
-        else:
-            for x in range(len(database)):
-                level = x + 1
-                buttonname = database[x].lev
-                buttonname = buttonname.lower()
-                buttonname = buttonname[0:5] + buttonname[6:]
-                exec(f'{buttonname} = tk.Button(leveltab, text=database[x].lev, command=levelcheck(self.ids_received, level, 1, False, True))')
-                supername = database[x].sup
-                supername = supername.lower()
-                supername = supername[0:5] + supername[6:]
-                exec(f'{supername} = tk.Button(supertab, text=database[x].sup, command=levelcheck(self.ids_received, level, 1, True, True))')
-            supertab.pack(expand=1, fill="both")
-        leveltab.pack(expand=1, fill="both")
-
-        try:
-            if not self.separate_supers and len(self.enabledbuttons) < 112:
-                for x in range(len(database)):
-                    if database[x].lev not in self.enabledbuttons:
-                        level = x + 1
-                        buttonname = database[x].lev
-                        buttonname = buttonname.lower()
-                        buttonname = buttonname[0:5] + buttonname[6:]
-                        if (not self.lock_supers or 9 in self.ids_received) and levelcheck(self.ids_received, level, 0, False, False):
-                            self.enabledbuttons.append(database[x].lev)
-                            exec(f'{buttonname}.config(state=tk.NORMAL)')
-                        elif levelcheck(self.ids_received, level, 0, False, True):
-                            self.enabledbuttons.append(database[x].lev)
-                            exec(f'{buttonname}.config(state=tk.NORMAL)')
-                        else: exec(f'{buttonname}.config(state=tk.DISABLED)')
-            elif self.separate_supers and len(self.enabledbuttons) < 224:
-                for x in range(len(database)):
-                    if database[x].lev not in self.enabledbuttons:
-                        level = x + 1
-                        buttonname = database[x].lev
-                        buttonname = buttonname.lower()
-                        buttonname = buttonname[0:5] + buttonname[6:]
-                        if levelcheck(self.ids_received, level, 0, False, True):
-                            self.enabledbuttons.append(database[x].lev)
-                            exec(f'{buttonname}.config(state=tk.NORMAL)')
-                        else: exec(f'{buttonname}.config(state=tk.DISABLED)')
-                    if database[x].sup not in self.enabledbuttons:
-                        buttonname = database[x].sup
-                        buttonname = buttonname.lower()
-                        buttonname = buttonname[0:5] + buttonname[6:]
-                        if (not self.lock_supers or 9 in self.ids_received) and levelcheck(self.ids_received, level, 0, True, True):
-                            self.enabledbuttons.append(database[x].sup)
-                            exec(f'{buttonname}.config(state=tk.NORMAL)')
-                        else: exec(f'{buttonname}.config(state=tk.DISABLED)')
-        except:
-            self.enabledbuttons = list()
-
-        root.mainloop()
 
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         rom_system = await bizhawk.get_system(ctx.bizhawk_ctx)
@@ -227,6 +230,7 @@ class BubbleBobbleClient(BizHawkClient):
             self.deathlinktrigger = bool(slotdata['deathlinktrigger'])
             self.deathlinkresult = bool(slotdata['deathlinkresult'])
             self.slot = args["slot"]
+            levelselector(self, ctx)
 
         if cmd == "Retrieved":
             if "bubbobtraps_applied" in args["keys"]:
@@ -439,7 +443,7 @@ class BubbleBobbleClient(BizHawkClient):
         self.current_powerups_p1 &= self.powerups_unlocked
         self.current_powerups_p2 &= self.powerups_unlocked
         self.writes.append((0x0030, self.current_powerups_p1.to_bytes(1), "RAM"))
-        self.writes.append((0x0030, self.current_powerups_p2.to_bytes(1), "RAM"))
+        self.writes.append((0x0044, self.current_powerups_p2.to_bytes(1), "RAM"))
 
         if 3 in self.ids_received: self.writes.append((0x01D1, b'\x01', "RAM"))
         else: self.writes.append((0x01D1, b'\x00', "RAM"))
