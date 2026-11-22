@@ -3,8 +3,6 @@ from typing import TYPE_CHECKING
 
 from NetUtils import ClientStatus
 from MultiServer import mark_raw
-import tkinter as tk
-from tkinter import ttk
 
 import worlds._bizhawk as bizhawk
 from worlds._bizhawk.client import BizHawkClient
@@ -16,6 +14,8 @@ from .items import ITEM_NAME_TO_ID
 from .rom import PlayerNameAddress, APidentifierAddress
 
 password_selector_addresses = [ 0x0502, 0x0503, 0x0504, 0x0505, 0x0506 ]
+
+#hope I see this when I need it: self.ctx.locations_checked or self.ctx.checked_locations
 
 if TYPE_CHECKING:
     from worlds._bizhawk.context import BizHawkClientContext, BizHawkClientCommandProcessor
@@ -74,94 +74,6 @@ def levelcheck(ids: list, level: int, purpose: int, superlevel: bool, separate: 
                     return has_letter
     return False
 
-def levelselector(client, ctx: "BizHawkClientContext"):
-    try:
-        if ctx.server is None or ctx.server.socket.closed or ctx.slot_data is None or ctx.auth is None:
-            if root is not None: root.destroy()
-            return
-        root = tk.Tk("500x500")
-        root.geometry
-        root.title("Bubble Bobble Password Selector")
-        tabControl = ttk.Notebook(root)
-        leveltab = ttk.Frame(tabControl)
-        tabControl.add(leveltab, text="Levels")
-        if client.separate_supers:
-            supertab = ttk.Frame(tabControl)
-            tabControl.add(supertab, text="Super Levels")
-        tabControl.pack(expand=1, fill ="both")
-
-        if not client.separate_supers:
-            if not client.lock_supers:
-                for x in range(len(database)):
-                    level = x + 1
-                    buttonname = database[x].lev
-                    buttonname = buttonname.lower()
-                    buttonname = buttonname[0:5] + buttonname[6:]
-                    exec(f'{buttonname} = tk.Button(leveltab, text=database[x].lev, command=levelcheck(client.ids_received, {level}, 1, False, False))')
-            else:
-                for x in range(len(database)):
-                    level = x + 1
-                    buttonname = database[x].lev
-                    buttonname = buttonname.lower()
-                    buttonname = buttonname[0:5] + buttonname[6:]
-                    if 9 in client.ids_received:
-                        exec(f'{buttonname} = tk.Button(leveltab, text=database[x].lev, command=levelcheck(client.ids_received, {level}, 1, False, False))')
-                    else:
-                        exec(f'{buttonname} = tk.Button(leveltab, text=database[x].lev, command=levelcheck(client.ids_received, {level}, 1, False, True))')
-
-        else:
-            for x in range(len(database)):
-                level = x + 1
-                buttonname = database[x].lev
-                buttonname = buttonname.lower()
-                buttonname = buttonname[0:5] + buttonname[6:]
-                exec(f'{buttonname} = tk.Button(leveltab, text=database[x].lev, command=levelcheck(client.ids_received, {level}, 1, False, True))')
-                supername = database[x].sup
-                supername = supername.lower()
-                supername = supername[0:5] + supername[6:]
-                exec(f'{supername} = tk.Button(supertab, text=database[x].sup, command=levelcheck(client.ids_received, {level}, 1, True, True))')
-            supertab.pack(expand=1, fill="both")
-        leveltab.pack(expand=1, fill="both")
-
-        try:
-            if not client.separate_supers and len(client.enabledbuttons) < 112:
-                for x in range(len(database)):
-                    if database[x].lev not in client.enabledbuttons:
-                        level = x + 1
-                        buttonname = database[x].lev
-                        buttonname = buttonname.lower()
-                        buttonname = buttonname[0:5] + buttonname[6:]
-                        if (not client.lock_supers or 9 in client.ids_received) and levelcheck(client.ids_received, level, 0, False, False):
-                            client.enabledbuttons.append(database[x].lev)
-                            exec(f'{buttonname}.config(state=tk.NORMAL)')
-                        elif levelcheck(client.ids_received, level, 0, False, True):
-                            client.enabledbuttons.append(database[x].lev)
-                            exec(f'{buttonname}.config(state=tk.NORMAL)')
-                        else: exec(f'{buttonname}.config(state=tk.DISABLED)')
-            elif client.separate_supers and len(client.enabledbuttons) < 224:
-                for x in range(len(database)):
-                    if database[x].lev not in client.enabledbuttons:
-                        level = x + 1
-                        buttonname = database[x].lev
-                        buttonname = buttonname.lower()
-                        buttonname = buttonname[0:5] + buttonname[6:]
-                        if levelcheck(client.ids_received, level, 0, False, True):
-                            client.enabledbuttons.append(database[x].lev)
-                            exec(f'{buttonname}.config(state=tk.NORMAL)')
-                        else: exec(f'{buttonname}.config(state=tk.DISABLED)')
-                    if database[x].sup not in client.enabledbuttons:
-                        buttonname = database[x].sup
-                        buttonname = buttonname.lower()
-                        buttonname = buttonname[0:5] + buttonname[6:]
-                        if (not client.lock_supers or 9 in client.ids_received) and levelcheck(client.ids_received, level, 0, True, True):
-                            client.enabledbuttons.append(database[x].sup)
-                            exec(f'{buttonname}.config(state=tk.NORMAL)')
-                        else: exec(f'{buttonname}.config(state=tk.DISABLED)')
-        except:
-            client.enabledbuttons = list()
-        root.mainloop()
-    except: client.compile_ids(ctx)
-
 class BubbleBobbleClient(BizHawkClient):
     game = "Bubble Bobble"
     system = "NES"
@@ -188,14 +100,14 @@ class BubbleBobbleClient(BizHawkClient):
         rom_identifier = await bizhawk.read(ctx.bizhawk_ctx,[(APidentifierAddress - 0x10, 0xb, "PRG ROM")])
         rom_identifier = rom_identifier[0]
         rom_identifier = rom_identifier.decode("ascii")
-        rom_player_name = await bizhawk.read(ctx.bizhawk_ctx,[(PlayerNameAddress - 0x10, 0x20, "PRG ROM")])
-        rom_player_name = bytes([byte for byte in rom_player_name[0] if byte != 0]).decode("ascii")
-        self.rom_slot_name = rom_player_name
 
         try:
             if rom_system == "NES" and rom_identifier == "BUBBOBAP123":
                 #UPDATE THE IDENTIFIER CHECK EVERY NEW VERSION
                 await bizhawk.write(ctx.bizhawk_ctx, [(0x0402, b'\x00', "RAM")])
+                rom_player_name = await bizhawk.read(ctx.bizhawk_ctx,[(PlayerNameAddress - 0x10, 0x20, "PRG ROM")])
+                rom_player_name = bytes([byte for byte in rom_player_name[0] if byte != 0]).decode("ascii")
+                self.rom_slot_name = rom_player_name
                 ctx.game = self.game
                 ctx.items_handling = 0b111
                 ctx.want_slot_data = True
@@ -230,7 +142,6 @@ class BubbleBobbleClient(BizHawkClient):
             self.deathlinktrigger = bool(slotdata['deathlinktrigger'])
             self.deathlinkresult = bool(slotdata['deathlinkresult'])
             self.slot = args["slot"]
-            levelselector(self, ctx)
 
         if cmd == "Retrieved":
             if "bubbobtraps_applied" in args["keys"]:
@@ -244,7 +155,6 @@ class BubbleBobbleClient(BizHawkClient):
         if ctx.server is None or ctx.server.socket.closed or ctx.slot_data is None or ctx.auth is None:
             self.initClient = False
             return
-
         self.compile_ids(ctx)
         self.traps_received = self.ids_received.count(1)
         self.writes = []
@@ -452,3 +362,7 @@ class BubbleBobbleClient(BizHawkClient):
         if self.kill_p2: self.writes.append((0x0042, b'\x00', "RAM"))
 
         await bizhawk.write(ctx.bizhawk_ctx, self.writes)
+        
+        try:
+            if self.root is not None: self.root.waitvar(self.ids_received)
+        except: pass
